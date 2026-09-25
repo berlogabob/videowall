@@ -2,7 +2,7 @@
 
 Old Samsung monitors turned into one video wall for the IADE Tech Lab: one Raspberry Pi per screen, a Python + FFmpeg server that prepares everything, mpv on each Pi.
 
-Controlled from [openlabtwin](https://github.com/berlogabob/openlabtwin) (office app) through two Supabase tables; setup tools live on this server's own LAN page. Plan: [docs/ROADMAP.md](docs/ROADMAP.md).
+Controlled from [openlabtwin](https://github.com/berlogabob/openlabtwin) (office app) through two Supabase tables; setup tools live on this server's own LAN page. Plan: [docs/ROADMAP.md](docs/ROADMAP.md). Setting up the Pis: [docs/pi-setup.md](docs/pi-setup.md).
 
 ## How it fits with openlabtwin
 
