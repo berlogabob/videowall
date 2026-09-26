@@ -51,7 +51,7 @@ Host wall-*.local
   ProxyJump TechLAB@techlab-01
 ```
 
-This needs the node to resolve `.local` names (avahi); if it doesn't, use the Pis' IP addresses.
+The node resolves `.local` names (avahi, checked 2026-09-25), so `wall-NN.local` works through it. From home the link goes through Tailscale's relay (about 40 ms): fine for setup, slow for copying video. SSH to `techlab-01` by name needs its `known_hosts` line, see openlabtwin `docs/edge-node.md` → Tailscale.
 
 ## What the script does
 
