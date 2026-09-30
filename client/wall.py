@@ -91,7 +91,7 @@ class Mpv:
         Path(self.sock).unlink(missing_ok=True)
         self.proc = await asyncio.create_subprocess_exec(
             "mpv", "--idle", "--force-window", "--fs", "--keep-open=always", "--image-display-duration=inf",
-            "--hwdec=no", "--no-osc", "--osd-level=0", "--no-audio", "--really-quiet", "--no-input-default-bindings",
+            "--hwdec=no", "--loop-file=inf", "--no-osc", "--osd-level=0", "--no-audio", "--really-quiet", "--no-input-default-bindings",
             f"--input-ipc-server={self.sock}", *self.extra)
         for _ in range(100):
             if Path(self.sock).exists():
@@ -133,6 +133,7 @@ class Client:
         self.items = self.load_plan()
         self.cur = None           # tile loaded in mpv, or "black"
         self.lead = 0.25          # seconds from loadfile to first frame, EWMA
+        self.seek_lead = 0.5      # seconds a seek takes on this Pi (a Pi 3 needs ~2 s at 1280x1024), learnt
         self.drift_ms = 0
         self.ws = None
         self.downloading = set()
@@ -244,6 +245,16 @@ class Client:
             except asyncio.TimeoutError:
                 pass
 
+    async def seek(self, pos):
+        while not self.mpv.events.empty():
+            self.mpv.events.get_nowait()
+        await self.mpv.cmd("seek", pos, "absolute")
+        try:
+            while await asyncio.wait_for(self.mpv.events.get(), 8) != "playback-restart":
+                pass
+        except asyncio.TimeoutError:
+            pass
+
     async def correct(self, item):
         pos = await self.mpv.cmd("get_property", "time-pos")
         if pos is None:
@@ -253,8 +264,13 @@ class Client:
         self.drift_ms = round(err * 1000)
         kind, speed = drift_action(err)
         if kind == "seek":
-            await self.mpv.cmd("set_property", "time-pos", expected_pos(item, time.time() + 0.1))
+            # Aim where the video will be once the seek is done, wait for it, then learn from the miss.
             await self.mpv.cmd("set_property", "speed", 1.0)
+            await self.seek(expected_pos(item, time.time() + self.seek_lead))
+            pos = await self.mpv.cmd("get_property", "time-pos")
+            if pos is not None:
+                miss = wrap_err(pos, expected_pos(item, time.time()), item.get("period"))
+                self.seek_lead = max(0.1, min(5.0, self.seek_lead - miss))
         else:
             await self.mpv.cmd("set_property", "speed", speed)
 
