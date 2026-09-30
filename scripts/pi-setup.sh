@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Set up a wall Pi (Raspberry Pi OS Lite). Safe to run again: it only changes what is missing.
 #
-#   On the Mac, all Pis at once:  scripts/pi-setup.sh wall-{01..15}.local
+#   On the Mac, all Pis at once:  scripts/pi-setup.sh wall-{a..e}{1..3}.local
 #   On the Mac, a card before first boot:  scripts/pi-setup.sh --boot /Volumes/bootfs
 #   On a Pi itself:  sudo bash pi-setup.sh
 #
@@ -12,7 +12,7 @@ WALL_USER=${WALL_USER:-techlab}
 MODE=${MODE:-1280x1024@60}  # the Samsung 720N's native mode
 
 # Boot files: force the HDMI output on at the monitor's mode (HDMI→VGA adapters often
-# report no screen), keep the console from blanking, hide the cursor, switch off Wi-Fi and Bluetooth.
+# report no screen), keep the console from blanking, hide the cursor, switch off Bluetooth and Wi-Fi (cable only: one address per Pi, so wall-XX.local always means the wire).
 boot_config() {
   local dir=$1 changed=0 p line tmp
   line=$(head -n1 "$dir/cmdline.txt")
@@ -22,7 +22,7 @@ boot_config() {
   if [ $changed = 1 ]; then
     tmp=$(mktemp); printf '%s\n' "$line" > "$tmp"; cat "$tmp" > "$dir/cmdline.txt"; rm "$tmp"
   fi
-  for p in hdmi_force_hotplug=1 disable_overscan=1 dtoverlay=disable-wifi dtoverlay=disable-bt; do
+  for p in hdmi_force_hotplug=1 disable_overscan=1 dtoverlay=disable-bt dtoverlay=disable-wifi; do
     grep -qx "$p" "$dir/config.txt" || { printf '%s\n' "$p" >> "$dir/config.txt"; changed=1; }
   done
   return $((1 - changed))  # 0 = something changed
@@ -47,8 +47,10 @@ remote() {
 on_pi() {
   [ "$(id -u)" = 0 ] || { echo "run with sudo"; exit 1; }
   export DEBIAN_FRONTEND=noninteractive
+  dpkg --configure -a  # finishes an install cut off by a power dip or dropped link
   apt-get update -q
   apt-get install -y -q mpv chrony curl  # chrony replaces systemd-timesyncd: tighter clocks for play_at
+  command -v mpv >/dev/null || { echo "mpv missing after install"; exit 1; }
   timedatectl set-timezone Europe/Lisbon
 
   su - "$WALL_USER" -c 'command -v uv >/dev/null || [ -x ~/.local/bin/uv ] || curl -LsSf https://astral.sh/uv/install.sh | sh'

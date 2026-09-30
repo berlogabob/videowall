@@ -1,3 +1,5 @@
 logs/
 .venv/
 __pycache__/
+raw/
+.DS_Store

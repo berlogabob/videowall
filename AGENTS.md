@@ -12,10 +12,10 @@ Rules from the owner:
 - Docs in English.
 - Keep it minimal: the server prepares everything (FFmpeg only, no Pillow), Pis only download and play (mpv).
 - Two modes only: Mosaic (one file per screen) and Videowall (one picture split across all). "Same media" is not a separate mode.
-- Rows and cols live only on the server; a Pi knows only its number (1 = top-left, left to right, then down).
+- Rows and cols live only on the server; a Pi knows only its grid code: letter = column, number = row, A1 top-left (E5 is bottom-right of a 5×5), hostname `wall-a1`.
 
 Gotchas the code doesn't show:
 - openlabtwin (github.com/berlogabob/openlabtwin) is the one entry point: its office app will control the wall through Supabase tables `wall_state` / `wall_status` that this server polls. The office can't call this server directly (HTTPS page, plain-http LAN server).
-- Lab access: the Mac reaches the lab over Tailscale; the node `techlab-01` (`ssh -i ~/.ssh/techlab TechLAB@techlab-01`) is the jump host and resolves `wall-NN.local`.
-- `scripts/pi-setup.sh` has never run on a real Pi yet; only `tests/test_pi_setup.sh` (boot-file edits) has run.
+- Lab access: the Mac reaches the lab over Tailscale; the node `techlab-01` (`ssh -i ~/.ssh/techlab TechLAB@techlab-01`) is the jump host and resolves `wall-a1.local`.
+- `scripts/pi-setup.sh` has run on `wall-a1`; each new Pi first needs the one-time passwordless-sudo step in `docs/pi-setup.md`.
 - The Mac's `/usr/bin/env bash` is bash 3.2: no `wait -n`, no empty arrays under `set -u` in scripts that run on the Mac.
