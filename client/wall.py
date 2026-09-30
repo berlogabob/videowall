@@ -103,8 +103,9 @@ class Mpv:
     async def _read(self):
         async for line in self.reader:
             msg = json.loads(line)
-            if "request_id" in msg and msg["request_id"] in self.pending:
-                self.pending.pop(msg["request_id"]).set_result(msg)
+            fut = self.pending.pop(msg.get("request_id"), None)
+            if fut and not fut.done():  # a reply after its timeout is dropped, not fatal
+                fut.set_result(msg)
             elif "event" in msg:
                 self.events.put_nowait(msg["event"])
 

@@ -99,3 +99,7 @@ Measured on `wall-a1` (Pi 3B+, 2026-09-30), 20 s of the 30 fps tile: software de
 
 - Video memory tuning, if longer or 60 fps tiles drop frames.
 - Client start at boot: manual `uv run` for now, systemd later.
+
+## Running the client
+
+From the Mac: `scripts/wall.sh start` (all 25, one after another), or with codes: `scripts/wall.sh start a1 b1`. It downloads `wall.py` from the server (`http://192.168.1.131:8080/wall.py`) and starts it detached with `uv run --script`; the log is `~/wall.log`, tiles are cached in `~/wall-cache/` (the client keeps 2 GB of the SD card free). `scripts/wall.sh status` and `stop` do what they say. Another server: `SERVER=ws://host:8080/ws scripts/wall.sh start`.

@@ -3,12 +3,10 @@
 Open work in order. Update in the same commit that finishes or adds an item.
 
 0. **Pis and bench.** Reflash every card (old password lost) and run `scripts/pi-setup.sh`, see [pi-setup.md](pi-setup.md). Done: the script and its test; 6 Pis set up and online, A1–B3 (`wall-a1`…`wall-b3`, all Pi 3B+, HDMI connected, 2026-09-30); `wall-a1` plays a 1280×1024 H.264 tile (software decode, 2 drops in 20 s). `wall-a1`, `wall-b1`, `wall-a2` report `throttled=0x50000` (under-voltage since boot): swap their PSU/cable. The wall router (TL-WR802N) is in Client mode on TechClub, so the switches are on the lab network. Next: pilot on the 2×3 block A1–B3, then the rest of the grid. Bench checks with one Pi 3B+ + one monitor: 1280×1024@60 over 2–3 adapter models, mpv plays a 1280×1024 H.264 tile smoothly, PSU throttling check. Pick one adapter, buy the same for all. Settle Pi 3 video memory / hardware decode here and add it to the script.
-1. **Mosaic, stills.** Pool folder (Samba share on the node, like `smb://…/tv`), each Pi cycles its images, test-mode defaults, Identify Screen, test pattern. 5×3.
-2. **Videowall, stills.** FFmpeg canvas + slice, distribute, synced image change.
-3. **Video.** Tile render, preload, `play_at`, chrony. Measure drift across 15 screens.
-4. **Composition.** Fit/Fill/Center, logo, title, credits, matte; small preview with grid overlay.
-5. **openlabtwin link.** `wall_state` / `wall_status` tables, office screen (mode, play/stop, blackout, status), docs in openlabtwin.
-6. **Physical build.** Print bracket + coil, fix PSU, scale to 5×5 (second switch), then 6×6.
+1. **Software (built 2026-10-01, see [PLAN.md](PLAN.md)).** Server, Pi client, Mosaic and Videowall (stills and video), schedule rules, composition, bezel, LAN page, Supabase link. Tested end to end on A1–B3 through SSH tunnels. Open: `sudo ufw allow from 192.168.1.0/24 to any port 8080` on the node (needs the owner's password); measure drift on 25 screens; test a portrait phone photo (EXIF rotation).
+2. **openlabtwin link.** Migration `wall_slides` / `wall_state` / `wall_status` + pgTAP, office Wall screen (branch `wall` in openlabtwin). Open: apply the migration (`scripts/sqltest.py`) and merge, which deploys the office.
+3. **Pis 19 more.** Flash `wall-c1`…`wall-e5` (hostname only, no Wi-Fi), sudo step, `scripts/pi-setup.sh`, second switch, then `scripts/wall.sh start`.
+4. **Physical build.** Print bracket + coil, fix PSU (a1, b1, a2 showed under-voltage), measure bezels for `--bezel-x/-y`, then 6×6.
 Later: bezel compensation in Videowall mode, playlists and schedule, event takeover like the TV, systemd once stable.
 
 ## Open questions
