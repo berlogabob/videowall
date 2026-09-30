@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Video wall</title>
+<style>
+  :root { --bg:#111; --fg:#eee; --dim:#888; --card:#1d1d1d; --ok:#2ca02c; --warn:#e8a317; --off:#555; --bad:#d62728; }
+  body { margin:0; font:14px/1.4 system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+  header { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:12px 16px; border-bottom:1px solid #333; }
+  header h1 { font-size:16px; margin:0 12px 0 0; }
+  main { display:grid; grid-template-columns:minmax(0,3fr) minmax(280px,2fr); gap:16px; padding:16px; }
+  @media (max-width:900px) { main { grid-template-columns:1fr; } }
+  button, select, input { font:inherit; background:#2a2a2a; color:var(--fg); border:1px solid #444; border-radius:6px; padding:5px 10px; }
+  button:hover { border-color:#888; cursor:pointer; }
+  button.on { background:var(--bad); border-color:var(--bad); }
+  #grid { display:grid; gap:6px; }
+  .card { background:var(--card); border-radius:8px; padding:8px; border-left:4px solid var(--off); min-width:0; }
+  .card.on { border-left-color:var(--ok); } .card.warn { border-left-color:var(--warn); }
+  .card b { font-size:18px; text-transform:uppercase; }
+  .card small { display:block; color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .card button { padding:2px 6px; font-size:12px; margin-top:4px; }
+  section { background:var(--card); border-radius:8px; padding:12px; margin-bottom:16px; }
+  h2 { font-size:14px; margin:0 0 8px; color:var(--dim); text-transform:uppercase; letter-spacing:.05em; }
+  table { width:100%; border-collapse:collapse; } td { padding:3px 4px; border-top:1px solid #2a2a2a; }
+  #preview { width:100%; border-radius:6px; background:#000; }
+  .muted { color:var(--dim); } .err { color:var(--bad); }
+  textarea { width:100%; min-height:160px; font:12px ui-monospace, monospace; background:#0b0b0b; color:var(--fg); border:1px solid #444; border-radius:6px; box-sizing:border-box; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Video wall</h1>
+  <span id="playing" class="muted"></span>
+  <span style="flex:1"></span>
+  <button onclick="post('/api/overlay/identify/all')">Identify all</button>
+  <button onclick="post('/api/overlay/test/all')">Test pattern</button>
+  <button id="blackout" onclick="post('/api/state', {blackout: !S.state.blackout})">Blackout</button>
+  <button id="play" onclick="post('/api/state', {playing: !S.state.playing})">Stop</button>
+  <button onclick="api('DELETE', '/api/now')">Back to schedule</button>
+</header>
+<main>
+  <div>
+    <div id="grid"></div>
+    <p id="meta" class="muted"></p>
+  </div>
+  <div>
+    <section>
+      <h2>Show now</h2>
+      <select id="mode"><option value="videowall">Videowall</option><option value="mosaic">Mosaic</option></select>
+      <select id="fit"><option>fit</option><option>fill</option><option>center</option></select>
+      <label class="muted"><input id="cycle" type="number" min="1" placeholder="10" style="width:60px"> s cycle</label>
+      <table id="media"></table>
+    </section>
+    <section>
+      <h2>Canvas</h2>
+      <img id="preview" alt="">
+    </section>
+    <section>
+      <h2>Renders</h2>
+      <div id="jobs" class="muted">none</div>
+    </section>
+    <section>
+      <h2>Playlist (standalone)</h2>
+      <p class="muted" id="plhint">Rows shaped like the office's wall_slides: mode, media_names, fit, seconds,
+        cycle_seconds, show_title, title, credits, logo, matte, position, active, starts_on, ends_on, from_time,
+        to_time, takeover, every_seconds.</p>
+      <textarea id="playlist" spellcheck="false"></textarea>
+      <button onclick="savePlaylist()">Save playlist</button> <span id="plmsg" class="muted"></span>
+    </section>
+  </div>
+</main>
+<script>
+let S = null, plDirty = false;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function api(method, url, body) {
+  const r = await fetch(url, {method, headers: {'Content-Type': 'application/json'}, body: body ? JSON.stringify(body) : undefined});
+  refresh(); return r;
+}
+const post = (url, body) => api('POST', url, body || {});
+function showNow(name) {
+  const mode = $('mode').value, body = {mode, fit: $('fit').value, media_names: name ? [name] : []};
+  if (mode === 'mosaic') body.cycle_seconds = +$('cycle').value || 10;
+  post('/api/now', body);
+}
+async function savePlaylist() {
+  try {
+    const r = await api('PUT', '/api/playlist', JSON.parse($('playlist').value || '[]'));
+    $('plmsg').textContent = r.ok ? 'saved' : (await r.json()).error; plDirty = false;
+  } catch (e) { $('plmsg').textContent = 'not JSON: ' + e.message; }
+}
+$('playlist').addEventListener('input', () => plDirty = true);
+function render() {
+  $('playing').textContent = S.playing + (S.db ? ' · office link on' : ' · standalone') + (S.db_error ? ' · ' + S.db_error : '');
+  $('blackout').classList.toggle('on', S.state.blackout);
+  $('play').textContent = S.state.playing ? 'Stop' : 'Play';
+  const g = $('grid');
+  g.style.gridTemplateColumns = `repeat(${S.cols}, minmax(0,1fr))`;
+  g.innerHTML = Object.entries(S.screens).map(([code, s]) => {
+    const warn = s.on && ((s.throttled && s.throttled !== '0x0') || Math.abs(s.clock_ms ?? 0) > 50 || Math.abs(s.drift_ms ?? 0) > 100);
+    return `<div class="card ${s.on ? (warn ? 'warn' : 'on') : ''}"><b>${code}</b>
+      <small>${s.on ? esc(s.ip) : 'offline'}</small>
+      <small>${s.on ? `thr ${esc(s.throttled ?? '?')} · ${s.temp ?? '?'}°C` : '&nbsp;'}</small>
+      <small>${s.on ? `clock ${s.clock_ms ?? '?'} ms · drift ${s.drift_ms ?? '?'} ms · drop ${s.dropped ?? 0}` : '&nbsp;'}</small>
+      <small>${s.on ? `SD free ${s.free_mb ?? '?'} MB` : '&nbsp;'}</small>
+      <button onclick="post('/api/overlay/identify/${code}')">Identify</button>
+      <button onclick="post('/api/overlay/test/${code}')">Test</button></div>`;
+  }).join('');
+  const on = Object.values(S.screens).filter(s => s.on).length;
+  $('meta').textContent = `${on}/${Object.keys(S.screens).length} online · cache ${S.cache_mb} MB · disk free ${S.disk_free_mb} MB · bezel ${S.bezel.join('×')} px`;
+  $('media').innerHTML = `<tr><td><button onclick="showNow(null)">All files (mosaic)</button></td><td></td></tr>` +
+    S.media.map(m => `<tr><td>${esc(m.name)}</td><td class="muted">${m.kind}${m.seconds ? ' ' + Math.round(m.seconds) + ' s' : ''} · ${m.width}×${m.height}</td>
+      <td><button data-n="${esc(m.name)}" onclick="showNow(this.dataset.n)">Show</button></td></tr>`).join('');
+  const jobs = Object.entries(S.jobs);
+  $('jobs').innerHTML = jobs.length ? jobs.map(([k, v]) => `<div class="${v.startsWith('failed') ? 'err' : ''}">${k}: ${esc(v)}</div>`).join('') : 'none';
+  if (!plDirty) $('playlist').value = JSON.stringify(S.slides, null, 1);
+  $('playlist').readOnly = S.db; if (S.db) $('plhint').textContent = 'Edited in the office (openlabtwin → Wall).';
+}
+async function refresh() {
+  try { S = await (await fetch('/api/status')).json(); render(); } catch (e) { $('playing').textContent = 'server not reachable'; }
+}
+setInterval(refresh, 2000); refresh();
+setInterval(() => { $('preview').src = '/api/preview.jpg?' + Date.now(); }, 5000); $('preview').src = '/api/preview.jpg';
+</script>
+</body>
+</html>

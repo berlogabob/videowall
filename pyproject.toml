@@ -2,4 +2,8 @@
 name = "videowall"
 version = "0.1.0"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "fastapi>=0.142.2",
+    "python-dateutil>=2.9.0.post0",
+    "uvicorn[standard]>=0.54.0",
+]
