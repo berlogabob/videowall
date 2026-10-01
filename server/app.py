@@ -367,6 +367,8 @@ class Wall:
             try:
                 state, slides, acts = await asyncio.to_thread(sdb.fetch, self.db)
                 state |= {k: self.state.get(k, d) for k, d in (("command_last_at", None), ("command_next", 0), ("command_next_at", 0))}
+                if state.get("now_at") and state["now_at"] > time.time() + 10:
+                    state["now_at"] = time.time() + 3  # office clock ahead: start on the server's clock instead
                 self.state, self.slides, self.activities = state, slides, acts
                 command = state.get("command") or {}
                 at = command.get("at")
@@ -374,7 +376,7 @@ class Wall:
                 if at and at != self.state.get("command_last_at") and kind in ("restart", "reboot"):
                     if target == "all":
                         index = self.state["command_next"]
-                        due = max(sdb.ts(at) + index * 30, self.state["command_next_at"])
+                        due = max(sdb.ts(at), self.state["command_next_at"])
                         # Online screens one every 30 s against peak current; offline ones are skipped, not waited for.
                         while index < len(self.codes) and not (self.screens.get(self.codes[index]) or {}).get("ws"):
                             index += 1
@@ -417,12 +419,15 @@ class Wall:
                           "disk_free_mb": st["disk_free_mb"]}
                 if time.time() - last_timeline > 60:
                     last_timeline = time.time()
-                    fields["timeline"] = timeline(self.state, self.slides, self.activities, last_timeline, 12,
-                                                   self.durations(), self.ready)
+                    try:  # a bad value from the office (e.g. sleep "25:00") must not stop the office link
+                        fields["timeline"] = timeline(self.state, self.slides, self.activities, last_timeline, 12,
+                                                       self.durations(), self.ready)
+                    except Exception as e:
+                        self.db_error = f"timeline: {type(e).__name__}: {e}"
                 if self.preview_at:
                     fields["preview_at"] = self.preview_at
-                if self.db_error:
-                    fields |= {"error": self.db_error[:500], "error_at": fields["seen_at"]}
+                fields |= ({"error": self.db_error[:500], "error_at": fields["seen_at"]} if self.db_error
+                           else {"error": None})  # a resolved error does not linger in wall_status
                 try:
                     await asyncio.to_thread(sdb.heartbeat, self.db, fields)
                 except Exception as e:

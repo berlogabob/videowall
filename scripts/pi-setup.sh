@@ -60,8 +60,9 @@ on_pi() {
 
   # Start the wall client at boot (cron @reboot, not systemd), so a screen comes back by itself after a power dip.
   # It fetches the server's current wall.py first and falls back to the copy it has if the server is not up yet.
-  local line="@reboot sleep 20; curl -fsSo wall.py.new http://$WALL_SERVER/wall.py && mv wall.py.new wall.py; \
-~/.local/bin/uv run --script wall.py --server ws://$WALL_SERVER/ws > wall.log 2>&1"
+  # Supervised: re-fetch and restart after a crash; no wall.py yet (server down at first boot) just retries.
+  local line="@reboot sleep 20; while true; do curl -fsSo wall.py.new http://$WALL_SERVER/wall.py && mv wall.py.new wall.py; \
+[ -f wall.py ] && ~/.local/bin/uv run --script wall.py --server ws://$WALL_SERVER/ws >> wall.log 2>&1; sleep 10; done"
   { crontab -u "$WALL_USER" -l 2>/dev/null | grep -v 'wall.py --server'; echo "$line"; } | crontab -u "$WALL_USER" -
 
   local boot=/boot/firmware reboot=""

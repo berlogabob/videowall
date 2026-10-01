@@ -218,6 +218,8 @@ class Client:
                         elif msg.get("t") == "command":
                             argv = command_argv(msg.get("kind"))
                             if msg.get("kind") == "restart" and argv:
+                                if self.mpv.proc and self.mpv.proc.returncode is None:
+                                    self.mpv.proc.terminate()  # else the new client starts a second mpv
                                 os.execv(argv[0], argv)
                             elif argv:
                                 subprocess.Popen(argv)
