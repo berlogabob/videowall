@@ -2,7 +2,7 @@
 import json, sys, tempfile
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from server import db
+from server import app as wall_app, db
 
 row = {"blackout": True, "playing": False, "now": {"mode": "mosaic"}, "now_at": "2026-10-01T10:00:00+00:00",
        "now_until": None, "command": {"kind": "restart", "code": "a1", "at": "x"}}
@@ -35,6 +35,36 @@ req, timeout = request_seen[0]
 assert req.full_url == "https://example.test/storage/v1/object/wall-preview/current.jpg"
 assert req.method == "POST" and req.data == b"jpg" and req.get_header("X-upsert") == "true"
 assert req.get_header("Content-type") == "image/jpeg" and req.get_header("Authorization") == "Bearer secret"
+class Listing:
+    def __enter__(self): return self
+    def __exit__(self, *args): pass
+    def read(self): return b'[{"name":"a.jpg","id":"one"}]'
+db.urllib.request.urlopen = lambda req, timeout: (request_seen.append((req, timeout)) or Listing())
+db.storage_list(("https://example.test/rest/v1", "secret"), "wall-upload")
+req, timeout = request_seen[-1]
+assert req.full_url == "https://example.test/storage/v1/object/list/wall-upload" and req.method == "POST"
+assert json.loads(req.data) == {"prefix": "", "limit": 1000, "offset": 0,
+                               "sortBy": {"column": "name", "order": "asc"}}
+
+class Download:
+    def __init__(self): self.read_once = False
+    def __enter__(self): return self
+    def __exit__(self, *args): pass
+    def read(self, size=-1):
+        if self.read_once: return b""
+        self.read_once = True
+        return b"file"
+db.urllib.request.urlopen = lambda req, timeout: (request_seen.append((req, timeout)) or Download())
+with tempfile.TemporaryDirectory() as d:
+    dest = Path(d) / "upload.jpg.part"
+    db.storage_get(("https://example.test/rest/v1", "secret"), "wall-upload", "staff/a b.jpg", dest)
+    req, timeout = request_seen[-1]
+    assert req.full_url == "https://example.test/storage/v1/object/wall-upload/staff/a%20b.jpg"
+    assert req.get_method() == "GET" and req.get_header("Authorization") == "Bearer secret"
+    assert dest.read_bytes() == b"file"
+
+listing = [{"name": "a.jpg", "id": "one"}, {"name": "folder", "id": None}, {"name": "b.mp4", "id": "two"}]
+assert wall_app.new_uploads(listing, {"a.jpg"}) == [listing[2]]
 
 # fetch: explicit columns, activities only for linked slides
 answers = {"wall_state": [row], "wall_slides": [{"id": 1, "activity_id": 7}, {"id": 2}], "activities": [{"id": 7}]}

@@ -30,6 +30,10 @@ def load_json(p, default):
         return default
 
 
+def new_uploads(listing, seen):
+    return [obj for obj in listing if obj.get("id") and obj["name"] not in seen]
+
+
 class Wall:
     def __init__(self, a):
         self.a = a
@@ -246,6 +250,29 @@ class Wall:
             try:
                 if t - last_ahead > 30:  # render ahead: everything in today's window, in playlist order
                     last_ahead = t
+                    if self.db:
+                        try:
+                            seen_path = self.root / "uploads.json"
+                            seen = set(load_json(seen_path, []))
+                            for obj in new_uploads(await asyncio.to_thread(sdb.storage_list, self.db, "wall-upload"), seen):
+                                remote = obj["name"]
+                                name = Path(remote).name
+                                if not name or name in (".", ".."):
+                                    continue
+                                dest = self.media_dir / name
+                                if dest.exists():
+                                    stem, suffix, index = Path(name).stem, Path(name).suffix, 1
+                                    while dest.exists():
+                                        dest = self.media_dir / f"{stem} (upload {index}){suffix}"
+                                        index += 1
+                                self.media_dir.mkdir(parents=True, exist_ok=True)
+                                part = dest.with_name(dest.name + ".part")
+                                await asyncio.to_thread(sdb.storage_get, self.db, "wall-upload", remote, part)
+                                part.replace(dest)
+                                seen.add(remote)
+                            seen_path.write_text(json.dumps(sorted(seen)))
+                        except Exception as e:
+                            self.db_error = f"{type(e).__name__}: {e}"
                     self.media = await asyncio.to_thread(R.scan, self.media_dir, self.root)
                     self.assets = await asyncio.to_thread(R.scan, ASSETS, self.root / "assets-probe") \
                         if ASSETS.is_dir() else {}

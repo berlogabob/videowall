@@ -1,6 +1,6 @@
 """Optional Supabase link (openlabtwin's wall tables), PostgREST over urllib like openlabtwin scripts/db.py.
 Service key only: it bypasses RLS, so every select names its columns. No env vars = standalone wall."""
-import json, os, urllib.parse, urllib.request
+import json, os, shutil, urllib.parse, urllib.request
 
 SLIDE_COLS = ("id,mode,title,media_names,seconds,cycle_seconds,fit,show_title,credits,logo,matte,position,active,"
               "starts_on,ends_on,from_time,to_time,takeover,every_seconds,activity_id")
@@ -72,3 +72,25 @@ def storage_put(db, bucket, path, data, content_type):
                                           "Content-Type": content_type, "x-upsert": "true"})
     with urllib.request.urlopen(req, timeout=30) as r:
         return r.read()
+
+
+def storage_list(db, bucket):
+    base, key = db
+    url = base.removesuffix("/rest/v1")
+    req = urllib.request.Request(f"{url}/storage/v1/object/list/{bucket}",
+                                 data=json.dumps({"prefix": "", "limit": 1000, "offset": 0,
+                                                  "sortBy": {"column": "name", "order": "asc"}}).encode(),
+                                 method="POST", headers={"apikey": key, "Authorization": f"Bearer {key}",
+                                                         "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read())
+
+
+def storage_get(db, bucket, path, dest):
+    base, key = db
+    url = base.removesuffix("/rest/v1")
+    obj = urllib.parse.quote(path, safe="/")
+    req = urllib.request.Request(f"{url}/storage/v1/object/{bucket}/{obj}",
+                                 headers={"apikey": key, "Authorization": f"Bearer {key}"})
+    with urllib.request.urlopen(req, timeout=30) as r, open(dest, "wb") as f:
+        shutil.copyfileobj(r, f)
