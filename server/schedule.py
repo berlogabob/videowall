@@ -4,7 +4,7 @@ in_window, link_events and occurrences are copied from openlabtwin (scripts/tv.p
 so a slide linked to a schedule activity takes the same slot on the TV and the wall. Like the TV page, the loop
 runs from the epoch and an announcement shows while t % every < its length, so both switch in the same second.
 """
-from datetime import datetime, time as dtime
+from datetime import datetime, time as dtime, timedelta
 from zoneinfo import ZoneInfo
 
 from dateutil.rrule import rrulestr
@@ -113,3 +113,41 @@ def describe(level, slide, until):
         end = (slide.get("to_time") or "")[:5]
         return f"Takeover: {name}" + (f" until {end}" if end else "")
     return ("Announcement: " + name) if level == "announcement" else ("Now: " + text) if level == "now" else text
+
+
+def timeline(state, slides, activities, t0, hours, durations, ready):
+    """Wall-wide schedule over the next hours, sampled at resolve() boundaries."""
+    end = t0 + hours * 3600
+    rows, t = [], t0
+    while t < end and len(rows) < 200:
+        level, slide, at, until = resolve(state, slides, activities, t, durations, ready)
+        stop = min(until or end, end)
+        dt = datetime.fromtimestamp(t, TZ)
+        for offset in range(hours // 24 + 2):
+            day = dt.date() + timedelta(days=offset)
+            for s in slides:
+                for key in ("from_time", "to_time"):
+                    if s.get(key):
+                        boundary = datetime.combine(day, dtime.fromisoformat(s[key])).replace(tzinfo=TZ).timestamp()
+                        if t < boundary < stop:
+                            stop = boundary
+        if stop <= t:
+            stop = min(t + 1, end)
+        label = "Test mode" if level == "defaults" else describe(level, slide, until)
+        row = {"at": t, "until": stop, "level": level, "label": label}
+        # Repeated timed announcements share one row; ordinary adjacent loop items are one loop window.
+        previous = next((r for r in reversed(rows) if r["level"] == level and r["label"] == label), None) \
+            if level == "announcement" else (rows[-1] if rows else None)
+        if previous and previous["level"] == level and previous["label"] == label and (level == "announcement" or previous["until"] == t):
+            previous["until"] = stop
+        elif level == "takeover" and rows and rows[-1]["level"] == level and rows[-1]["label"] == label and rows[-1]["until"] == t:
+            rows[-1]["until"] = stop
+        elif level == "loop" and rows and rows[-1]["level"] == level and rows[-1]["label"].startswith("Loop:"):
+            rows[-1]["until"] = stop
+        elif level == "loop":
+            rows.append({"at": t, "until": stop, "level": level,
+                         "label": f"Loop: {sum(1 for s in slides if not s.get('takeover') and not s.get('every_seconds'))} entries"})
+        else:
+            rows.append(row)
+        t = stop
+    return rows

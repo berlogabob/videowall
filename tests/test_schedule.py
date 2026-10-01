@@ -3,7 +3,7 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from server.schedule import TZ, describe, in_window, link_events, occurrences, resolve, slide_len
+from server.schedule import TZ, describe, in_window, link_events, occurrences, resolve, slide_len, timeline
 
 day = date(2026, 10, 1)
 s = {"active": True, "starts_on": "2026-10-01", "ends_on": None, "from_time": "09:00:00", "to_time": "17:00:00"}
@@ -70,4 +70,12 @@ assert resolve(state, [L], [act], at(14, 59), durations, yes)[0] == "defaults"
 
 assert describe("takeover", T, None) == "Takeover: clip.mp4 until 18:00"
 assert describe("blackout", None, None) == "Blackout"
+
+rows = timeline(state, slides + [T], [], at(16, 59), 2, durations, yes)
+takeover = next(r for r in rows if r["level"] == "takeover")
+assert (takeover["at"], takeover["until"], takeover["label"]) == (at(17, 0), at(18, 0), "Takeover: clip.mp4 until 18:00")
+announcements = timeline(state, [A, N], [], at(12, 0), 2, durations, yes)
+assert len([r for r in announcements if r["level"] == "announcement"]) == 1
+empty = timeline(state, [], [], at(12, 0), 12, durations, yes)
+assert empty == [{"at": at(12, 0), "until": at(12, 0) + 12 * 3600, "level": "defaults", "label": "Test mode"}]
 print("schedule: ok")

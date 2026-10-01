@@ -15,7 +15,7 @@ from . import db as sdb
 from . import render as R
 from datetime import datetime
 
-from .schedule import TZ, describe, in_window, link_events, resolve
+from .schedule import TZ, describe, in_window, link_events, resolve, timeline
 
 HERE = Path(__file__).parent
 ASSETS = HERE / "assets"
@@ -318,7 +318,7 @@ class Wall:
 
     async def office(self):
         """Poll the wall tables every 2 s (a slow fetch just delays the next), heartbeat every 10 s."""
-        last_beat = 0
+        last_beat = last_timeline = 0
         while True:
             try:
                 state, slides, acts = await asyncio.to_thread(sdb.fetch, self.db)
@@ -346,6 +346,10 @@ class Wall:
                 fields = {"seen_at": datetime.now(timezone.utc).isoformat(), "playing": st["playing"],
                           "screens": st["screens"], "slides": slides, "cache_mb": st["cache_mb"],
                           "disk_free_mb": st["disk_free_mb"]}
+                if time.time() - last_timeline > 60:
+                    last_timeline = time.time()
+                    fields["timeline"] = timeline(self.state, self.slides, self.activities, last_timeline, 12,
+                                                   self.durations(), self.ready)
                 if self.preview_at:
                     fields["preview_at"] = self.preview_at
                 if self.db_error:

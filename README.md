@@ -4,6 +4,8 @@ Old Samsung monitors turned into one video wall for the IADE Tech Lab: one Raspb
 
 Controlled from [openlabtwin](https://github.com/berlogabob/openlabtwin) (office app) through two Supabase tables; setup tools live on this server's own LAN page. Plan: [docs/ROADMAP.md](docs/ROADMAP.md). Setting up the Pis: [docs/pi-setup.md](docs/pi-setup.md).
 
+When connected to Supabase, the server writes the next 12 hours of scheduled playback to `wall_status.timeline` once a minute for the office Today view.
+
 When the office link is configured with `SUPABASE_URL` and `SUPABASE_SERVICE_KEY`, the server uploads the current Videowall or Mosaic preview to the private `wall-preview` Storage bucket and records `wall_status.preview_at`.
 
 ## How it fits with openlabtwin
