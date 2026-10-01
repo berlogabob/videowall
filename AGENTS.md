@@ -19,3 +19,7 @@ Gotchas the code doesn't show:
 - Lab access: the Mac reaches the lab over Tailscale; the node `techlab-01` (`ssh -i ~/.ssh/techlab TechLAB@techlab-01`) is the jump host and resolves `wall-a1.local`.
 - `scripts/pi-setup.sh` has run on `wall-a1`; each new Pi first needs the one-time passwordless-sudo step in `docs/pi-setup.md`.
 - The Mac's `/usr/bin/env bash` is bash 3.2: no `wait -n`, no empty arrays under `set -u` in scripts that run on the Mac.
+
+Project record rules (openlabtwin is the record location):
+- A commit that makes, changes or reverses a decision adds a decision record in openlabtwin `docs/decisions` (a reversal adds a new record and marks the old one superseded) and carries the trailer `Decision: NNNN short title`.
+- Each working day gets a `docs/LOG.md` entry in openlabtwin (newest first).

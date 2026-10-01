@@ -1,5 +1,7 @@
 # videowall
 
+Project history and decisions: [openlabtwin log](https://github.com/berlogabob/openlabtwin/blob/main/docs/LOG.md) and [decision records](https://github.com/berlogabob/openlabtwin/tree/main/docs/decisions).
+
 Old Samsung monitors turned into one video wall for the IADE Tech Lab: one Raspberry Pi per screen, a Python + FFmpeg server that prepares everything, mpv on each Pi.
 
 Controlled from [openlabtwin](https://github.com/berlogabob/openlabtwin) (office app) through two Supabase tables; setup tools live on this server's own LAN page. Plan: [docs/ROADMAP.md](docs/ROADMAP.md). Setting up the Pis: [docs/pi-setup.md](docs/pi-setup.md).
