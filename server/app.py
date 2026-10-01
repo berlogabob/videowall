@@ -287,6 +287,12 @@ class Wall:
             try:
                 state, slides, acts = await asyncio.to_thread(sdb.fetch, self.db)
                 self.state, self.slides, self.activities = state, slides, acts
+                ov = state.get("overlay") or {}
+                until = sdb.ts(ov.get("until")) or 0
+                if ov.get("kind") in OVERLAY_SECONDS and until > time.time():  # Identify / Test from the office
+                    for c in self.codes if ov.get("code") == "all" else [ov.get("code")]:
+                        if c in self.codes:
+                            self.overlay[c] = (ov["kind"], until)
                 (self.root / "last-db.json").write_text(json.dumps({"state": state, "slides": slides,
                                                                     "activities": acts}))
                 self.db_error = None

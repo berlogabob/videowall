@@ -7,7 +7,8 @@ from server import db
 row = {"blackout": True, "playing": False, "now": {"mode": "mosaic"}, "now_at": "2026-10-01T10:00:00+00:00",
        "now_until": None}
 st = db.state_from_row(row)
-assert st == {"blackout": True, "playing": False, "now": {"mode": "mosaic"}, "now_at": 1790848800.0, "now_until": None}
+assert st == {"blackout": True, "playing": False, "now": {"mode": "mosaic"}, "now_at": 1790848800.0, "now_until": None, "overlay": None}
+assert "overlay" not in db.row_from_state(st)
 back = db.row_from_state(st)
 assert back["now_at"].startswith("2026-10-01T10:00:00") and back["now_until"] is None and back["blackout"] is True
 assert db.state_from_row({})["playing"] is True
