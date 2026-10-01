@@ -1,0 +1,8 @@
+# 19 Live bezel tuning
+Goal: set the bezel gaps (px hidden behind the monitor frames) while the Test pattern shows, without restarting the server.
+DB: new migration supabase/migrations/20261002100009_bezel.sql: `alter table wall_state add column bezel jsonb check (bezel is null or (jsonb_typeof(bezel->'x') = 'number' and jsonb_typeof(bezel->'y') = 'number'));`. pgTAP: one lives_ok / throws_like pair in 13_wall_commands.test.sql (bump plan()).
+Server (videowall): `Wall.grid` becomes a property: (cols, rows, even(bezel.x), even(bezel.y)) from `self.state["bezel"]` when set, else the --bezel-x/--bezel-y args; clamp 0..400. db.py: read `bezel` in STATE_COLS/state_from_row and write it in row_from_state. app.py: POST /api/state also accepts {"bezel": {"x": n, "y": n}}; /api/status already returns "bezel". Renders already key on the grid, so a change re-renders the test grid and videowall items by itself. server/page.html: "Gap X / Y px" number inputs next to Test pattern, saved on change.
+Office (openlabtwin): wall_screen.dart, next to "Test pattern": a "Bezel gap" row showing X and Y px (from wall_state.bezel, else "server default") with buttons −10 −2 +2 +10 for each axis, writing wall_state.bezel; helper text "Frame width between two pictures in mm ÷ 0.264 (720N pixel pitch). Show the Test pattern and adjust until the diagonals and the circle run straight across the frames."
+Tests: tests/test_db.py bezel round trip; tests/test_render.py grid property clamps and rounds to even (pure helper `bezel_grid(cols, rows, bezel, default_x, default_y)` in render.py).
+Docs: README (bezel tuning), STAFF-GUIDE (Bezel gap).
+Accept: uv run python tests/test_*.py; flutter analyze && flutter test.
