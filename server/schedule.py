@@ -107,7 +107,8 @@ def describe(level, slide, until):
     """For the office's status line."""
     if level in ("blackout", "stopped", "defaults"):
         return {"blackout": "Blackout", "stopped": "Stopped", "defaults": "Test mode (defaults)"}[level]
-    name = slide.get("title") or ", ".join(slide.get("media_names") or []) or "all files"
+    name = slide.get("text") if slide.get("text") and not slide.get("media_names") else (
+        slide.get("title") or ", ".join(slide.get("media_names") or []) or "all files")
     text = f"{slide['mode'].capitalize()}: {name}"
     if level == "takeover":
         end = (slide.get("to_time") or "")[:5]

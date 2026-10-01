@@ -9,6 +9,9 @@ assert r.canvas_size(5, 5) == (6400, 5120) and r.canvas_size(5, 5, 40, 30) == (6
 assert r.crop_xy("a1", 40, 30) == (0, 0) and r.crop_xy("e5", 40, 30) == (4 * 1320, 4 * 1054)
 assert r.canvas_size(2, 1, 41, 0) == (2600, 1024)       # odd bezel rounds to even
 assert r.bezel_px(10) == 38
+assert r.wrap("one two three", 7) == "one two\nthree"
+assert r.wrap("one\n\ntwo", 24) == "one\n\ntwo"
+assert r.wrap("a" * 25, 24) == "a" * 24 + "\na"
 
 assert "decrease" in r.fit_filter("fit", 10, 10) and "increase" in r.fit_filter("fill", 10, 10)
 assert "scale" not in r.fit_filter("center", 10, 10)
@@ -63,6 +66,13 @@ with tempfile.TemporaryDirectory() as t:
     assert dims(t / "m" / "tile.jpg")["width"] == 1280
     r.render_identify("c4", "192.168.1.9", t / "id" / "c4.jpg")
     assert (t / "id" / "c4.jpg").exists()
+
+    if r.has_filter("drawtext"):
+        r.render_text("Emergency message", t / "text", grid, r.find_font())
+        assert sorted(p.name for p in (t / "text").glob("*.jpg")) == ["a1.jpg", "a2.jpg", "b1.jpg", "b2.jpg", "preview.jpg"]
+        assert dims(t / "text" / "preview.jpg")["width"] == 640
+    else:
+        print("render: drawtext missing, emergency text smoke render skipped")
 
     c = r.Cache(t / "cache", 1)
     (c.dir("k1")).mkdir(parents=True); (c.dir("k1") / "a1.jpg").write_bytes(b"x" * 10); c.finish("k1")

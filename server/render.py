@@ -3,7 +3,7 @@
 All tiles are 1280x1024 (Samsung 720N). A render lives in <cache>/tiles/<key>/ with one file per screen code
 (a1.jpg, b1.mp4, ...), optional poster-<code>.jpg and preview.jpg, and meta.json written last (= ready).
 """
-import hashlib, json, os, shutil, subprocess, time
+import hashlib, json, os, shutil, subprocess, textwrap, time
 from pathlib import Path
 
 TW, TH = 1280, 1024
@@ -234,6 +234,30 @@ def prepare_text(d, font, title=None, credits=None):
         if text and ok:
             (d / name).write_text(text)
     return bool(ok and title), bool(ok and credits)
+
+
+def wrap(text, width=24):
+    """Wrap words while preserving explicit paragraph breaks."""
+    return "\n".join(textwrap.fill(line, width) for line in text.splitlines() or [text])
+
+
+def render_text(text, d, grid, font):
+    """Render an emergency message onto a black canvas, then slice it into screen JPGs."""
+    cols, rows, gx, gy = grid
+    W, H = canvas_size(cols, rows, gx, gy)
+    d.mkdir(parents=True, exist_ok=True)
+    font = find_font(font)
+    if not font or not has_filter("drawtext"):
+        raise RuntimeError("emergency text needs an FFmpeg drawtext filter and a font")
+    shutil.copyfile(font, d / "font.ttf")
+    (d / "text.txt").write_text(wrap(text))
+    graph = f"[0:v]{drawtext('text.txt', H // 10, '(w-tw)/2', '(h-th)/2')}[c]"
+    cs = codes(cols, rows)
+    args = ["-f", "lavfi", "-i", f"color=c=black:s={W}x{H}", "-filter_complex",
+            slice_graph(graph, cs, gx, gy, W, preview=True)]
+    for code in cs:
+        args += ["-map", f"[o_{code}]", *STILL, f"{code}.jpg"]
+    ffmpeg(args + ["-map", "[o_preview]", *STILL, "preview.jpg"], cwd=d)
 
 
 # --- renders --------------------------------------------------------------------------------------------

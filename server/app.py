@@ -121,6 +121,10 @@ class Wall:
 
     def wall_keys(self, s):
         """Videowall slide -> (video key or None, poster/still key or None), queueing poster first (D9)."""
+        if s.get("text") and not s.get("media_names"):
+            k = R.key("emergency-text", s["text"], self.grid, self.a.font)
+            return None, k if self.ensure(k, lambda d, p: R.render_text(s["text"], d, self.grid, self.a.font),
+                                         2 * 2**20 * len(self.codes)) else None
         name = (s.get("media_names") or [None])[0]
         m = self.info(name) if name else None
         if not m:
@@ -205,6 +209,8 @@ class Wall:
         if vk:
             return [self.item(vk, f"{code}.mp4", "video", at, until, self.cache.meta(vk).get("period"))]
         if pk:
+            if s.get("text") and not s.get("media_names"):
+                return [self.item(pk, f"{code}.jpg", "image", at, until)]
             m = self.info(s["media_names"][0])
             return [self.item(pk, f"poster-{code}.jpg" if m["kind"] == "video" else f"{code}.jpg", "image", at, until)]
         return black
