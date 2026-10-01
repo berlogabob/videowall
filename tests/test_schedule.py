@@ -3,9 +3,14 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from server.schedule import TZ, describe, in_window, link_events, occurrences, resolve, slide_len, timeline
+from server.schedule import TZ, describe, in_sleep, in_window, link_events, occurrences, resolve, slide_len, timeline
 
 day = date(2026, 10, 1)
+sleep = {"from": "20:00", "to": "08:00"}
+assert in_sleep(sleep, datetime(2026, 10, 1, 23, tzinfo=TZ).timestamp())
+assert in_sleep(sleep, datetime(2026, 10, 1, 7, 59, tzinfo=TZ).timestamp())
+assert not in_sleep(sleep, datetime(2026, 10, 1, 12, tzinfo=TZ).timestamp())
+assert not in_sleep(None, datetime(2026, 10, 1, 23, tzinfo=TZ).timestamp())
 s = {"active": True, "starts_on": "2026-10-01", "ends_on": None, "from_time": "09:00:00", "to_time": "17:00:00"}
 assert in_window(s, day) and in_window(s, day, "09:00") and not in_window(s, day, "17:00") and not in_window(s, day, "08:59")
 assert not in_window(s | {"active": False}, day) and not in_window(s, date(2026, 9, 30))
@@ -43,6 +48,7 @@ assert resolve(state, slides, [], t0 + 3, durations, lambda s: s is not A)[1] is
 
 # precedence
 assert resolve(state | {"blackout": True, "now": A}, slides, [], t0, durations, yes)[0] == "blackout"
+assert resolve(state | {"sleep": {"from": "00:00", "to": "23:59"}, "now": A}, slides, [], at(12, 0), durations, yes)[0] == "sleep"
 assert resolve(state | {"playing": False}, slides, [], t0, durations, yes)[0] == "stopped"
 now = {"mode": "mosaic", "media_names": []}
 assert resolve(state | {"now": now, "now_at": t0}, slides + [T], [], at(17, 30), durations, yes)[:3] == ("now", now, t0)

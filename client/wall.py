@@ -210,6 +210,11 @@ class Client:
                             asyncio.create_task(self.fetch_all())
                         elif msg.get("t") == "ping":
                             await self.send({"t": "pong", "id": msg.get("id"), "now": time.time()})
+                        elif msg.get("t") == "command" and msg.get("kind") == "display":
+                            # Night sleep: HDMI off lets the monitor go to standby; on KMS this may be refused,
+                            # then the server's black plan is all there is.
+                            out = sh(["vcgencmd", "display_power", "1" if msg.get("on") else "0"])
+                            print(f"display {'on' if msg.get('on') else 'off'}: vcgencmd -> {out or 'no answer'}", flush=True)
                         elif msg.get("t") == "command":
                             argv = command_argv(msg.get("kind"))
                             if msg.get("kind") == "restart" and argv:

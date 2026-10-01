@@ -15,7 +15,7 @@ from . import db as sdb
 from . import render as R
 from datetime import datetime
 
-from .schedule import TZ, describe, in_window, link_events, resolve, timeline
+from .schedule import TZ, describe, in_sleep, in_window, link_events, resolve, timeline
 
 HERE = Path(__file__).parent
 ASSETS = HERE / "assets"
@@ -55,6 +55,7 @@ class Wall:
         self.jobs = {}         # render key -> "queued" | "rendering 40%" | "failed: ..."
         self.q = queue.Queue()
         self.sent = {}
+        self.display_on = None
         self.pinned = set()
         self.show = ("defaults", None, 0, None)
         self.db = sdb.connect()
@@ -197,7 +198,7 @@ class Wall:
     def items_for(self, code, show, t):
         level, s, at, until = show
         black = [{"tile": "black", "kind": "black", "at": at}]
-        if level == "blackout":
+        if level in ("blackout", "sleep"):
             return black
         if level == "stopped":  # idle card: the logo on every screen, else black
             return self.mosaic_items(code, ["logo.png"], "fit", None, at, until, t) if "logo.png" in self.assets else black
@@ -248,6 +249,13 @@ class Wall:
         while True:
             t = time.time()
             try:
+                display_on = not in_sleep(self.state.get("sleep"), t)
+                if display_on != self.display_on:
+                    for scr in self.screens.values():
+                        if scr.get("ws"):
+                            await scr["ws"].send_json({"t": "command", "kind": "display", "on": display_on})
+                    self.display_on = display_on
+                    print(f"display power {'on' if display_on else 'off'} sent", flush=True)
                 if t - last_ahead > 30:  # render ahead: everything in today's window, in playlist order
                     last_ahead = t
                     if self.db:
@@ -524,6 +532,9 @@ def make_app(a):
                     wall.screens[code] = {"ws": sock, "ip": sock.client.host if sock.client else None,
                                           "status": {"free_mb": msg.get("free_mb")}, "seen": time.time()}
                     wall.sent.pop(code, None)
+                    on = not in_sleep(wall.state.get("sleep"), time.time())
+                    await sock.send_json({"t": "command", "kind": "display", "on": on})
+                    print(f"{code}: display power {'on' if on else 'off'} sent", flush=True)
                 elif code and t == "status":
                     wall.screens[code] |= {"status": msg, "seen": time.time()}
                 elif code and t == "pong":

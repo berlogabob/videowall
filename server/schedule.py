@@ -36,6 +36,17 @@ def in_window(s, day, clock=None):
     return clock is None or ((not start or start <= clock) and (not end or clock < end))
 
 
+def in_sleep(sleep, t):
+    if not sleep:
+        return False
+    try:
+        start, end = (dtime.fromisoformat(sleep[k]) for k in ("from", "to"))
+    except (KeyError, TypeError, ValueError):
+        return False
+    clock = datetime.fromtimestamp(t, TZ).time()
+    return start <= clock < end if start <= end else clock >= start or clock < end
+
+
 def link_events(slides, activities, day):
     """Slides linked to a schedule activity take that activity's slot today as their dates and times; with no
     approved occurrence today (cancelled, deleted, another day) they don't play."""
@@ -71,6 +82,8 @@ def resolve(state, slides, activities, t, durations, ready):
     ready(slide) says whether its tiles (or a poster) exist; not-ready slides are skipped."""
     if state.get("blackout"):
         return ("blackout", None, 0, None)
+    if in_sleep(state.get("sleep"), t):
+        return ("sleep", None, 0, None)
     if not state.get("playing", True):
         return ("stopped", None, 0, None)
     now = state.get("now")
@@ -105,8 +118,8 @@ def resolve(state, slides, activities, t, durations, ready):
 
 def describe(level, slide, until):
     """For the office's status line."""
-    if level in ("blackout", "stopped", "defaults"):
-        return {"blackout": "Blackout", "stopped": "Stopped", "defaults": "Test mode (defaults)"}[level]
+    if level in ("blackout", "sleep", "stopped", "defaults"):
+        return {"blackout": "Blackout", "sleep": "Night sleep", "stopped": "Stopped", "defaults": "Test mode (defaults)"}[level]
     name = slide.get("text") if slide.get("text") and not slide.get("media_names") else (
         slide.get("title") or ", ".join(slide.get("media_names") or []) or "all files")
     text = f"{slide['mode'].capitalize()}: {name}"
@@ -126,6 +139,12 @@ def timeline(state, slides, activities, t0, hours, durations, ready):
         dt = datetime.fromtimestamp(t, TZ)
         for offset in range(hours // 24 + 2):
             day = dt.date() + timedelta(days=offset)
+            sleep = state.get("sleep") or {}
+            for key in ("from", "to"):
+                if sleep.get(key):
+                    boundary = datetime.combine(day, dtime.fromisoformat(sleep[key])).replace(tzinfo=TZ).timestamp()
+                    if t < boundary < stop:
+                        stop = boundary
             for s in slides:
                 for key in ("from_time", "to_time"):
                     if s.get(key):

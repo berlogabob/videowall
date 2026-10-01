@@ -4,7 +4,7 @@ import json, os, shutil, urllib.parse, urllib.request
 
 SLIDE_COLS = ("id,mode,title,media_names,seconds,cycle_seconds,fit,show_title,credits,logo,matte,position,active,"
               "starts_on,ends_on,from_time,to_time,takeover,every_seconds,activity_id")
-STATE_COLS = "blackout,playing,now,now_at,now_until,overlay,command"
+STATE_COLS = "blackout,playing,now,now_at,now_until,overlay,command,sleep"
 ACT_COLS = "id,title,status,starts_at,ends_at,rrule,exdates"
 
 
@@ -35,14 +35,17 @@ def ts(v):
 def state_from_row(row):
     return {"blackout": bool(row.get("blackout")), "playing": row.get("playing", True) is not False,
             "now": row.get("now"), "now_at": ts(row.get("now_at")), "now_until": ts(row.get("now_until")),
-            "overlay": row.get("overlay"), "command": row.get("command")}
+            "overlay": row.get("overlay"), "command": row.get("command"), "sleep": row.get("sleep")}
 
 
 def row_from_state(state):
     from datetime import datetime, timezone
     iso = lambda v: datetime.fromtimestamp(v, timezone.utc).isoformat() if v else None
-    return {"blackout": state["blackout"], "playing": state["playing"], "now": state.get("now"),
-            "now_at": iso(state.get("now_at")), "now_until": iso(state.get("now_until"))}
+    row = {"blackout": state["blackout"], "playing": state["playing"], "now": state.get("now"),
+           "now_at": iso(state.get("now_at")), "now_until": iso(state.get("now_until"))}
+    if "sleep" in state:
+        row["sleep"] = state["sleep"]
+    return row
 
 
 def fetch(db):
