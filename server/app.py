@@ -4,7 +4,7 @@
 
 Control: the LAN page (/), and the office through Supabase when SUPABASE_URL / SUPABASE_SERVICE_KEY are set.
 """
-import argparse, asyncio, json, queue, shutil, threading, time, traceback
+import argparse, asyncio, json, math, queue, shutil, threading, time, traceback
 from pathlib import Path
 
 from fastapi import Body, FastAPI, WebSocket, WebSocketDisconnect
@@ -37,7 +37,6 @@ def new_uploads(listing, seen):
 class Wall:
     def __init__(self, a):
         self.a = a
-        self.grid = (a.cols, a.rows, R.even(a.bezel_x), R.even(a.bezel_y))
         self.codes = R.codes(a.cols, a.rows)
         self.root = Path(a.cache).expanduser()
         self.cache = R.Cache(self.root, a.cache_gb)
@@ -67,6 +66,10 @@ class Wall:
             if cached:
                 self.state, self.slides, self.activities = cached["state"], cached["slides"], cached["activities"]
         threading.Thread(target=self.worker, daemon=True).start()
+
+    @property
+    def grid(self):
+        return R.bezel_grid(self.a.cols, self.a.rows, self.state.get("bezel"), self.a.bezel_x, self.a.bezel_y)
 
     # --- persistence ----------------------------------------------------------------------------------------
     def save_state(self):
@@ -476,10 +479,17 @@ def make_app(a):
 
     @app.post("/api/state")
     def set_state(body: dict = Body(...)):
-        """{blackout?, playing?}"""
+        """{blackout?, playing?, bezel?: {x, y}}"""
         for k in ("blackout", "playing"):
             if k in body:
                 wall.state[k] = bool(body[k])
+        if "bezel" in body:
+            bezel = body["bezel"]
+            if (not isinstance(bezel, dict) or any(isinstance(bezel.get(k), bool) or
+                    not isinstance(bezel.get(k), (int, float)) or not math.isfinite(bezel[k])
+                    for k in ("x", "y"))):
+                return JSONResponse({"error": "bezel must contain numeric x and y"}, 400)
+            wall.state["bezel"] = {"x": max(0, min(400, bezel["x"])), "y": max(0, min(400, bezel["y"]))}
         wall.save_state()
         return wall.state
 

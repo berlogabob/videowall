@@ -5,13 +5,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from server import app as wall_app, db
 
 row = {"blackout": True, "playing": False, "now": {"mode": "mosaic"}, "now_at": "2026-10-01T10:00:00+00:00",
+       "bezel": {"x": 42, "y": 18},
        "now_until": None, "command": {"kind": "restart", "code": "a1", "at": "x"}, "sleep": {"from": "20:00", "to": "08:00"}}
 st = db.state_from_row(row)
 assert st == {"blackout": True, "playing": False, "now": {"mode": "mosaic"}, "now_at": 1790848800.0, "now_until": None,
-              "overlay": None, "command": row["command"], "sleep": row["sleep"]}
+              "overlay": None, "command": row["command"], "sleep": row["sleep"], "bezel": row["bezel"]}
 assert "overlay" not in db.row_from_state(st)
 back = db.row_from_state(st)
 assert back["now_at"].startswith("2026-10-01T10:00:00") and back["now_until"] is None and back["blackout"] is True
+assert back["bezel"] == row["bezel"]
 assert db.state_from_row({})["playing"] is True
 assert db.state_from_row({})["sleep"] is None
 assert db.state_from_row(row)["command"] == row["command"]

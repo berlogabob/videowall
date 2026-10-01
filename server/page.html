@@ -35,6 +35,8 @@
   <span style="flex:1"></span>
   <button onclick="post('/api/overlay/identify/all')">Identify all</button>
   <button onclick="post('/api/overlay/test/all')">Test pattern</button>
+  <label>Gap X <input id="gap-x" type="number" min="0" max="400" step="2" style="width:64px" onchange="saveBezel()"> px</label>
+  <label>Y <input id="gap-y" type="number" min="0" max="400" step="2" style="width:64px" onchange="saveBezel()"> px</label>
   <button id="blackout" onclick="post('/api/state', {blackout: !S.state.blackout})">Blackout</button>
   <button id="play" onclick="post('/api/state', {playing: !S.state.playing})">Stop</button>
   <button onclick="api('DELETE', '/api/now')">Back to schedule</button>
@@ -90,8 +92,14 @@ async function savePlaylist() {
     $('plmsg').textContent = r.ok ? 'saved' : (await r.json()).error; plDirty = false;
   } catch (e) { $('plmsg').textContent = 'not JSON: ' + e.message; }
 }
+function saveBezel() {
+  const x = $('gap-x').value, y = $('gap-y').value;
+  if (x !== '' && y !== '') post('/api/state', {bezel: {x: +x, y: +y}});
+}
 $('playlist').addEventListener('input', () => plDirty = true);
 function render() {
+  if (document.activeElement !== $('gap-x')) $('gap-x').value = S.bezel[0];
+  if (document.activeElement !== $('gap-y')) $('gap-y').value = S.bezel[1];
   $('playing').textContent = S.playing + (S.db ? ' · office link on' : ' · standalone') + (S.db_error ? ' · ' + S.db_error : '');
   $('blackout').classList.toggle('on', S.state.blackout);
   $('play').textContent = S.state.playing ? 'Stop' : 'Play';

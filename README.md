@@ -14,6 +14,8 @@ The office can send a one-shot restart or reboot command to a screen; “all” 
 
 The office can show an emergency text message across the Videowall until “Back to schedule”.
 
+Bezel gaps can be tuned live from the LAN page: show the Test pattern and set Gap X/Y in pixels; the values save to `wall_state` when Supabase is connected, or to the local state file otherwise. The server uses `--bezel-x/--bezel-y` until a saved gap is set. Convert the frame width between two pictures from mm to pixels by dividing by 0.264.
+
 ## How it fits with openlabtwin
 
 This repo holds the wall itself (render server + Pi client). openlabtwin stays the one entry point: it owns two small Supabase tables and an office screen, nothing else.

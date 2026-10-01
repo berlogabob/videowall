@@ -34,6 +34,11 @@ def even(n):
     return int(n) // 2 * 2  # yuv420p needs even sizes; a bezel of 1 px is noise anyway
 
 
+def bezel_grid(cols, rows, bezel, default_x, default_y):
+    x, y = (bezel or {}).get("x", default_x), (bezel or {}).get("y", default_y)
+    return cols, rows, even(max(0, min(400, x))), even(max(0, min(400, y)))
+
+
 def canvas_size(cols, rows, gx=0, gy=0):
     """The picture spans the screens and the bezel gaps between them (gx, gy px, hidden behind the frames)."""
     return cols * TW + (cols - 1) * even(gx), rows * TH + (rows - 1) * even(gy)
