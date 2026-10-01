@@ -263,6 +263,16 @@ def render_tile(src, out, fit="fit", video=False, duration=None, progress=None):
            duration=duration if video else None, progress=progress)
 
 
+def mosaic_preview(tiles, cols, rows, out):
+    """Compose the current mosaic tiles into a 640 px wide preview with screen borders."""
+    cs = codes(cols, rows)
+    layout = "|".join(f"{c % cols * TW}_{c // cols * TH}" for c in range(cols * rows))
+    graph = f"xstack=inputs={len(cs)}:layout={layout},scale=640:-2,drawgrid=w={TW * 640 / (cols * TW):.2f}:h={TH * 640 / (cols * TW):.2f}:t=2:c=red@0.8"
+    out = Path(out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    ffmpeg([*sum((["-i", str(tiles[c])] for c in cs), []), "-filter_complex", graph, *STILL, str(out)])
+
+
 PALETTE = ["0x1f77b4", "0xd62728", "0x2ca02c", "0x9467bd", "0xff7f0e", "0x17becf", "0x8c564b", "0xe377c2"]
 
 

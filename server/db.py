@@ -61,3 +61,14 @@ def set_state(db, state):
 def heartbeat(db, fields):
     request(db, "POST", "wall_status", {"on_conflict": "id"}, [{"id": 1, **fields}],
             {"Prefer": "resolution=merge-duplicates,return=minimal"})
+
+
+def storage_put(db, bucket, path, data, content_type):
+    base, key = db
+    url = base.removesuffix("/rest/v1")
+    obj = urllib.parse.quote(path, safe="/")
+    req = urllib.request.Request(f"{url}/storage/v1/object/{bucket}/{obj}", data=data, method="POST",
+                                 headers={"apikey": key, "Authorization": f"Bearer {key}",
+                                          "Content-Type": content_type, "x-upsert": "true"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return r.read()

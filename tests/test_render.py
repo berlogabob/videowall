@@ -43,6 +43,8 @@ with tempfile.TemporaryDirectory() as t:
     r.render_test_grid(t / "grid", grid)
     assert sorted(p.name for p in (t / "grid").glob("*.jpg")) == ["a1.jpg", "a2.jpg", "b1.jpg", "b2.jpg", "preview.jpg"]
     assert (dims(t / "grid" / "b2.jpg")["width"], dims(t / "grid" / "b2.jpg")["height"]) == (1280, 1024)
+    r.mosaic_preview({c: t / "grid" / f"{c}.jpg" for c in r.codes(2, 2)}, 2, 2, t / "mosaic-preview.jpg")
+    assert dims(t / "mosaic-preview.jpg")["width"] == 640
 
     src = t / "src.mp4"
     r.ffmpeg(["-f", "lavfi", "-i", "testsrc2=s=1920x1080:r=30", "-t", "2", "-pix_fmt", "yuv420p", str(src)])

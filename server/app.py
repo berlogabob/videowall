@@ -52,6 +52,8 @@ class Wall:
         self.show = ("defaults", None, 0, None)
         self.db = sdb.connect()
         self.db_error = None
+        self.preview_signature = None
+        self.preview_at = None
         if self.db:
             cached = load_json(self.root / "last-db.json", None)
             if cached:
@@ -243,6 +245,7 @@ class Wall:
                         if in_window(s, today):
                             self.ready(s)
                 plans = self.plans(t)
+                await self.update_preview(plans, t)
                 for code, items in plans.items():
                     scr = self.screens.get(code)
                     if scr and scr.get("ws") and self.sent.get(code) != items:
@@ -251,6 +254,39 @@ class Wall:
             except Exception:
                 traceback.print_exc()
             await asyncio.sleep(0.5)
+
+    async def update_preview(self, plans, t):
+        if not self.db or self.show[0] in ("blackout", "stopped", "defaults"):
+            return
+        level, slide, at, _ = self.show
+        if not slide:
+            return
+        if slide.get("mode") == "videowall":
+            key = self.wall_keys(slide)[1]
+            path = self.cache.dir(key) / "preview.jpg" if key and self.cache.ready(key) else None
+            signature = (level, key)
+        else:
+            tiles = {}
+            for code, items in plans.items():
+                item = next((i for i in items if i.get("kind") in ("image", "video") and i["at"] <= t
+                             and (i.get("until") is None or t < i["until"])), None)
+                if item:
+                    tiles[code] = self.cache.tiles / item["url"].removeprefix("/tiles/")
+            if len(tiles) != len(self.codes) or not all(p.is_file() for p in tiles.values()):
+                return
+            signature = (level, tuple((c, str(tiles[c])) for c in self.codes))
+            path = self.root / "current-preview.jpg"
+            if signature != self.preview_signature:
+                await asyncio.to_thread(R.mosaic_preview, tiles, self.a.cols, self.a.rows, path)
+        if not path or not path.is_file() or signature == self.preview_signature:
+            return
+        try:
+            await asyncio.to_thread(sdb.storage_put, self.db, "wall-preview", "current.jpg",
+                                    path.read_bytes(), "image/jpeg")
+            self.preview_signature = signature
+            self.preview_at = datetime.now().astimezone().isoformat()
+        except Exception as e:
+            self.db_error = f"{type(e).__name__}: {e}"
 
     # --- clocks and the office ------------------------------------------------------------------------------
     async def pings(self):
@@ -310,6 +346,8 @@ class Wall:
                 fields = {"seen_at": datetime.now(timezone.utc).isoformat(), "playing": st["playing"],
                           "screens": st["screens"], "slides": slides, "cache_mb": st["cache_mb"],
                           "disk_free_mb": st["disk_free_mb"]}
+                if self.preview_at:
+                    fields["preview_at"] = self.preview_at
                 if self.db_error:
                     fields |= {"error": self.db_error[:500], "error_at": fields["seen_at"]}
                 try:

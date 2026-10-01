@@ -22,6 +22,18 @@ assert "merge-duplicates" in headers["Prefer"]
 db.set_state(("u", "k"), st)
 assert calls[-1][:3] == ("PATCH", "wall_state", {"id": "eq.1"})
 
+class Reply:
+    def __enter__(self): return self
+    def __exit__(self, *args): pass
+    def read(self): return b""
+request_seen = []
+db.urllib.request.urlopen = lambda req, timeout: (request_seen.append((req, timeout)) or Reply())
+db.storage_put(("https://example.test/rest/v1", "secret"), "wall-preview", "current.jpg", b"jpg", "image/jpeg")
+req, timeout = request_seen[0]
+assert req.full_url == "https://example.test/storage/v1/object/wall-preview/current.jpg"
+assert req.method == "POST" and req.data == b"jpg" and req.get_header("X-upsert") == "true"
+assert req.get_header("Content-type") == "image/jpeg" and req.get_header("Authorization") == "Bearer secret"
+
 # fetch: explicit columns, activities only for linked slides
 answers = {"wall_state": [row], "wall_slides": [{"id": 1, "activity_id": 7}, {"id": 2}], "activities": [{"id": 7}]}
 seen = []
