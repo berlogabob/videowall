@@ -366,7 +366,7 @@ class Wall:
         while True:
             try:
                 state, slides, acts = await asyncio.to_thread(sdb.fetch, self.db)
-                state |= {k: self.state[k] for k in ("command_last_at", "command_next", "command_next_at")}
+                state |= {k: self.state.get(k, d) for k, d in (("command_last_at", None), ("command_next", 0), ("command_next_at", 0))}
                 self.state, self.slides, self.activities = state, slides, acts
                 command = state.get("command") or {}
                 at = command.get("at")
