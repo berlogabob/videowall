@@ -10,6 +10,7 @@ set -euo pipefail
 
 WALL_USER=${WALL_USER:-techlab}
 MODE=${MODE:-1280x1024@60}  # the Samsung 720N's native mode
+WALL_SERVER=${WALL_SERVER:-192.168.1.131:8080}  # the wall server the client starts against at boot
 
 # Boot files: force the HDMI output on at the monitor's mode (HDMI→VGA adapters often
 # report no screen), keep the console from blanking, hide the cursor, switch off Bluetooth and Wi-Fi (cable only: one address per Pi, so wall-XX.local always means the wire).
@@ -36,7 +37,7 @@ remote() {
     case $h in *@*) target=$h ;; *) target=$WALL_USER@$h ;; esac
     # ponytail: plain ssh in parallel; fine for tens of Pis, a real fleet tool if it ever grows past that
     ssh $key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 "$target" \
-      "sudo WALL_USER=$WALL_USER MODE=$MODE bash -s" < "$0" > "logs/${h#*@}.log" 2>&1 &
+      "sudo WALL_USER=$WALL_USER MODE=$MODE WALL_SERVER=$WALL_SERVER bash -s" < "$0" > "logs/${h#*@}.log" 2>&1 &
     pids+=($!)
   done
   for i in "${pids[@]}"; do wait "$i" || failed=$((failed + 1)); done
@@ -56,6 +57,12 @@ on_pi() {
   su - "$WALL_USER" -c 'command -v uv >/dev/null || [ -x ~/.local/bin/uv ] || curl -LsSf https://astral.sh/uv/install.sh | sh'
 
   systemctl disable --now bluetooth hciuart 2>/dev/null || true
+
+  # Start the wall client at boot (cron @reboot, not systemd), so a screen comes back by itself after a power dip.
+  # It fetches the server's current wall.py first and falls back to the copy it has if the server is not up yet.
+  local line="@reboot sleep 20; curl -fsSo wall.py.new http://$WALL_SERVER/wall.py && mv wall.py.new wall.py; \
+~/.local/bin/uv run --script wall.py --server ws://$WALL_SERVER/ws > wall.log 2>&1"
+  { crontab -u "$WALL_USER" -l 2>/dev/null | grep -v 'wall.py --server'; echo "$line"; } | crontab -u "$WALL_USER" -
 
   local boot=/boot/firmware reboot=""
   [ -f $boot/cmdline.txt ] || boot=/boot

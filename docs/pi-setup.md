@@ -76,6 +76,7 @@ The node resolves `.local` names (avahi, checked 2026-09-25), so `wall-XX.local`
 | `cmdline.txt`: `consoleblank=0 vt.global_cursor_default=0` | screen never blanks, no blinking cursor |
 | `config.txt`: `hdmi_force_hotplug=1 disable_overscan=1` | output on even with no screen detected, no black border |
 | `config.txt`: `dtoverlay=disable-bt`, `dtoverlay=disable-wifi`; Bluetooth services off | cable only: a Pi with Wi-Fi too has two addresses, `wall-XX.local` flips between them and SSH times out (seen on a3/b3, 2026-09-30). The wall router in Client mode is the uplink; if it drops, plug into the wall switch |
+| `@reboot` cron line for `techlab`: fetch `wall.py` from the server, start it | a screen comes back by itself after a power dip or reboot (cron, not systemd); `WALL_SERVER=host:port` to point it elsewhere |
 | Report: model, memory, HDMI status, `vcgencmd get_throttled` | `throttled=0x0` is good; anything else (e.g. `0x50005`) means undervoltage, usually the shared USB charger (5 V / 2 A per port, the Pi 3B+ wants 2.5 A) |
 
 Knobs: `MODE=1920x1080@60` for another monitor, `WALL_USER=pi` for another user name, both as environment variables on the Mac.
