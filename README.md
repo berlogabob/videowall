@@ -8,6 +8,8 @@ When connected to Supabase, the server writes the next 12 hours of scheduled pla
 
 When the office link is configured with `SUPABASE_URL` and `SUPABASE_SERVICE_KEY`, the server uploads the current Videowall or Mosaic preview to the private `wall-preview` Storage bucket and records `wall_status.preview_at`.
 
+The office can send a one-shot restart or reboot command to a screen; “all” reboots are staggered by 30 seconds in screen order. This needs the `wall_state.command` migration in openlabtwin.
+
 ## How it fits with openlabtwin
 
 This repo holds the wall itself (render server + Pi client). openlabtwin stays the one entry point: it owns two small Supabase tables and an office screen, nothing else.

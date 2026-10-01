@@ -16,6 +16,10 @@ CACHE = Path.home() / "wall-cache"
 KEEP_FREE_MB = 2048
 
 
+def command_argv(kind):
+    return {"restart": [sys.executable, *sys.argv], "reboot": ["sudo", "systemctl", "reboot"]}.get(kind)
+
+
 def screen_from_hostname(name):
     """'wall-c4' or 'wall-c4.local' -> 'c4'."""
     name = name.split(".")[0].lower()
@@ -206,6 +210,12 @@ class Client:
                             asyncio.create_task(self.fetch_all())
                         elif msg.get("t") == "ping":
                             await self.send({"t": "pong", "id": msg.get("id"), "now": time.time()})
+                        elif msg.get("t") == "command":
+                            argv = command_argv(msg.get("kind"))
+                            if msg.get("kind") == "restart" and argv:
+                                os.execv(argv[0], argv)
+                            elif argv:
+                                subprocess.Popen(argv)
             except Exception as e:
                 print(f"link: {type(e).__name__}: {e}; retry in {backoff}s", flush=True)
             self.ws = None

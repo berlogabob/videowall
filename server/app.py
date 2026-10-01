@@ -41,6 +41,9 @@ class Wall:
         self.media, self.assets = {}, {}
         self.state = load_json(self.root / "state.json", {}) or {}
         self.state = {"blackout": False, "playing": True, "now": None, "now_at": None, "now_until": None} | self.state
+        self.state.setdefault("command_last_at", None)
+        self.state.setdefault("command_next", 0)
+        self.state.setdefault("command_next_at", 0)
         self.slides = load_json(self.root / "playlist.json", [])
         self.activities = []
         self.screens = {}      # code -> {ws, ip, status, seen, clock_ms}
@@ -322,7 +325,32 @@ class Wall:
         while True:
             try:
                 state, slides, acts = await asyncio.to_thread(sdb.fetch, self.db)
+                state |= {k: self.state[k] for k in ("command_last_at", "command_next", "command_next_at")}
                 self.state, self.slides, self.activities = state, slides, acts
+                command = state.get("command") or {}
+                at = command.get("at")
+                kind, target = command.get("kind"), command.get("code")
+                if at and at != self.state.get("command_last_at") and kind in ("restart", "reboot"):
+                    if target == "all":
+                        index = self.state["command_next"]
+                        due = max(sdb.ts(at) + index * 30, self.state["command_next_at"])
+                        # Online screens one every 30 s against peak current; offline ones are skipped, not waited for.
+                        while index < len(self.codes) and not (self.screens.get(self.codes[index]) or {}).get("ws"):
+                            index += 1
+                        self.state["command_next"] = index
+                        if index < len(self.codes) and time.time() >= due:
+                            await self.screens[self.codes[index]]["ws"].send_json({"t": "command", "kind": kind})
+                            self.state["command_next"] = index = index + 1
+                            self.state["command_next_at"] = time.time() + 30
+                        if index >= len(self.codes):
+                            self.state |= {"command_last_at": at, "command_next": 0, "command_next_at": 0}
+                        self.save_local_state()
+                    else:  # one screen: now if online, else dropped (no surprise reboot hours later)
+                        scr = self.screens.get(target) or {}
+                        if scr.get("ws"):
+                            await scr["ws"].send_json({"t": "command", "kind": kind})
+                        self.state["command_last_at"] = at
+                        self.save_local_state()
                 ov = state.get("overlay") or {}
                 until = sdb.ts(ov.get("until")) or 0
                 if ov.get("kind") in OVERLAY_SECONDS and until > time.time():  # Identify / Test from the office
@@ -359,6 +387,9 @@ class Wall:
                 except Exception as e:
                     self.db_error = f"{type(e).__name__}: {e}"
             await asyncio.sleep(2)
+
+    def save_local_state(self):
+        (self.root / "state.json").write_text(json.dumps(self.state))
 
 
 def make_app(a):

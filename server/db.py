@@ -4,7 +4,7 @@ import json, os, urllib.parse, urllib.request
 
 SLIDE_COLS = ("id,mode,title,media_names,seconds,cycle_seconds,fit,show_title,credits,logo,matte,position,active,"
               "starts_on,ends_on,from_time,to_time,takeover,every_seconds,activity_id")
-STATE_COLS = "blackout,playing,now,now_at,now_until,overlay"
+STATE_COLS = "blackout,playing,now,now_at,now_until,overlay,command"
 ACT_COLS = "id,title,status,starts_at,ends_at,rrule,exdates"
 
 
@@ -35,7 +35,7 @@ def ts(v):
 def state_from_row(row):
     return {"blackout": bool(row.get("blackout")), "playing": row.get("playing", True) is not False,
             "now": row.get("now"), "now_at": ts(row.get("now_at")), "now_until": ts(row.get("now_until")),
-            "overlay": row.get("overlay")}  # read only: the office sets it, the server never writes it back
+            "overlay": row.get("overlay"), "command": row.get("command")}
 
 
 def row_from_state(state):

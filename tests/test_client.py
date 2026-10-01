@@ -5,6 +5,8 @@ spec = importlib.util.spec_from_file_location("wall", pathlib.Path(__file__).par
 w = importlib.util.module_from_spec(spec); spec.loader.exec_module(w)
 
 assert w.screen_from_hostname("wall-c4") == "c4" and w.screen_from_hostname("WALL-E5.local") == "e5"
+assert w.command_argv("restart") == [w.sys.executable, *w.sys.argv]
+assert w.command_argv("reboot") == ["sudo", "systemctl", "reboot"]
 
 items = [{"tile": "x", "at": 100}, {"tile": "y", "at": 160}]
 assert w.current_item(items, 99) is None
