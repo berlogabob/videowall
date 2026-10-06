@@ -58,7 +58,7 @@ with tempfile.TemporaryDirectory() as t:
     frames = set()
     for c in r.codes(2, 2):
         d = dims(t / "vw" / f"{c}.mp4")
-        assert (d["width"], d["height"], d["r_frame_rate"]) == (1280, 1024, "30/1"), d
+        assert (d["width"], d["height"], d["r_frame_rate"]) == (*r.VIDEO_TILE, "30/1"), d  # Pis decode 900x720, mpv scales
         frames.add(d["nb_read_frames"])
         assert (t / "vw" / f"poster-{c}.jpg").exists()
     assert len(frames) == 1, frames                                   # every tile the same length

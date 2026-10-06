@@ -60,8 +60,13 @@ def fetch(db):
     return state_from_row(st[0] if st else {}), slides, acts
 
 
-def set_state(db, state):
-    request(db, "PATCH", "wall_state", {"id": "eq.1"}, row_from_state(state), {"Prefer": "return=minimal"})
+def set_state(db, state, keys=None):
+    """PATCH the control row; with keys, only those columns, so a change made here never writes back other
+    fields the server may hold stale between polls (a stale playing=false once undid a Play)."""
+    row = row_from_state(state)
+    if keys:
+        row = {k: v for k, v in row.items() if k in keys}
+    request(db, "PATCH", "wall_state", {"id": "eq.1"}, row, {"Prefer": "return=minimal"})
 
 
 def heartbeat(db, fields):

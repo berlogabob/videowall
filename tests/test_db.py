@@ -79,3 +79,11 @@ state, slides, acts = db.fetch(("u", "k"))
 assert state["blackout"] and len(slides) == 2 and acts == [{"id": 7}]
 assert all("*" not in p["select"] for _, p in seen) and seen[-1][1]["id"] == "in.(7)"
 print("db: ok")
+
+# a LAN change writes only its own columns (no stale playing=false written back with a "show now")
+calls.clear()
+db.request = lambda d, method, table, params=None, body=None, headers=None: calls.append((method, table, params, body, headers))
+db.set_state(("u", "k"), {"blackout": False, "playing": False, "now": {"mode": "mosaic"}, "now_at": 1.0, "now_until": None},
+             ("now", "now_at", "now_until"))
+assert set(calls[-1][3]) == {"now", "now_at", "now_until"}, calls[-1][3]
+print("db: partial write ok")

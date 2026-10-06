@@ -86,13 +86,17 @@ def canvas_graph(cols, rows, gx=0, gy=0, fit="fit", matte=0, title=False, credit
     return g + "[c]", W, H
 
 
-def slice_graph(graph, codes_, gx, gy, W, preview=False):
+VIDEO_TILE = (900, 720)  # what a Pi decodes for a videowall video; mpv scales it to 1280x1024
+
+
+def slice_graph(graph, codes_, gx, gy, W, preview=False, out_size=None):
     """[c] -> one [o_<code>] per screen (+ [o_preview], 640 px wide with the tile borders drawn)."""
     n = len(codes_) + (1 if preview else 0)
     g = graph + f";[c]split={n}" + "".join(f"[s{i}]" for i in range(n))
     for i, code in enumerate(codes_):
         x, y = crop_xy(code, gx, gy)
-        g += f";[s{i}]crop={TW}:{TH}:{x}:{y}[o_{code}]"
+        scale = f",scale={out_size[0]}:{out_size[1]}" if out_size else ""
+        g += f";[s{i}]crop={TW}:{TH}:{x}:{y}{scale}[o_{code}]"
     if preview:
         s = 640 / W
         g += (f";[s{n - 1}]scale=640:-2,drawgrid=w={(TW + even(gx)) * s:.2f}:h={(TH + even(gy)) * s:.2f}"
@@ -275,20 +279,33 @@ def render_videowall(src, d, grid, fit="fit", matte=0, title=None, credits=None,
     graph, W, H = canvas_graph(cols, rows, gx, gy, fit, matte, t, c, bool(logo))
     cs = codes(cols, rows)
     still = not video or poster
-    g = slice_graph(graph, cs, gx, gy, W, preview=still)
+    g = slice_graph(graph, cs, gx, gy, W, preview=still, out_size=None if still else VIDEO_TILE)
     args = ["-i", str(src)] + (["-i", str(logo)] if logo else []) + ["-filter_complex", g]
     for code in cs:
         name = (f"poster-{code}.jpg" if poster else f"{code}.jpg") if still else f"{code}.mp4"
-        args += ["-map", f"[o_{code}]", *(STILL if still else VIDEO_ARGS), name]
+        args += ["-map", f"[o_{code}]", *(STILL if still else TILE_ARGS), name]
     if still:
         args += ["-map", "[o_preview]", *STILL, "preview.jpg"]
     ffmpeg(args, cwd=d, duration=None if still else duration, progress=progress)
 
 
+# Mosaic video tiles at the TV copy's rate: one screen shows a 720p picture, 2.5 Mb/s is plenty and decodes cooler.
+TILE_RATE = ["-b:v", "2500k", "-maxrate", "3M", "-bufsize", "5M"]
+TILE_ARGS = VIDEO_ARGS[:VIDEO_ARGS.index("-b:v")] + TILE_RATE + VIDEO_ARGS[VIDEO_ARGS.index("-bufsize") + 2:]
+
+
+def tv_copy(src, height=720):
+    """The TV's lighter copy of a video (tv.py: <media>/.tv/<stem>.<hash>.<height>p.mp4), or None."""
+    found = sorted((src.parent / ".tv").glob(f"{src.stem}.*.{height}p.mp4"))
+    return found[-1] if found else None
+
+
 def render_tile(src, out, fit="fit", video=False, duration=None, progress=None):
-    """Mosaic: one file normalised to one screen."""
+    """Mosaic: one file normalised to one screen. A video uses the TV's 720p copy when there is one."""
     out.parent.mkdir(parents=True, exist_ok=True)
-    ffmpeg(["-i", str(src), "-vf", fit_filter(fit, TW, TH), *(VIDEO_ARGS if video else STILL), str(out)],
+    if video:
+        src = tv_copy(src) or src
+    ffmpeg(["-i", str(src), "-vf", fit_filter(fit, TW, TH), *(TILE_ARGS if video else STILL), str(out)],
            duration=duration if video else None, progress=progress)
 
 

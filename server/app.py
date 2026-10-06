@@ -72,11 +72,11 @@ class Wall:
         return R.bezel_grid(self.a.cols, self.a.rows, self.state.get("bezel"), self.a.bezel_x, self.a.bezel_y)
 
     # --- persistence ----------------------------------------------------------------------------------------
-    def save_state(self):
+    def save_state(self, *keys):
         (self.root / "state.json").write_text(json.dumps(self.state))
         if self.db:
             try:
-                sdb.set_state(self.db, self.state)
+                sdb.set_state(self.db, self.state, keys)
             except Exception as e:
                 self.db_error = f"{type(e).__name__}: {e}"
 
@@ -119,7 +119,8 @@ class Wall:
         """Mosaic: one file on one screen. Returns (key, ext) and queues the render."""
         m = self.info(name)
         video = m["kind"] == "video"
-        k = R.key("tile", name, m["size"], m["mtime"], fit)
+        copy = R.tv_copy(self.src(name)) if video else None  # the TV copy and rate are part of the render
+        k = R.key("tile", name, m["size"], m["mtime"], fit, copy.name if copy else None, "2500k" if video else None)
         ext = "mp4" if video else "jpg"
 
         def fn(d, progress):
@@ -149,7 +150,7 @@ class Wall:
         ready_p = self.ensure(pk, still, 2 * 2**20 * len(self.codes))
         if not video:
             return None, pk if ready_p else None
-        vk = R.key(*base, "video")
+        vk = R.key(*base, "video", R.VIDEO_TILE, "2500k")
 
         def moving(d, progress):
             R.render_videowall(self.src(name), d, self.grid, video=True, duration=m["seconds"], progress=progress,
@@ -490,7 +491,7 @@ def make_app(a):
                     for k in ("x", "y"))):
                 return JSONResponse({"error": "bezel must contain numeric x and y"}, 400)
             wall.state["bezel"] = {"x": max(0, min(400, bezel["x"])), "y": max(0, min(400, bezel["y"]))}
-        wall.save_state()
+        wall.save_state(*[k for k in ("blackout", "playing", "bezel") if k in body])
         return wall.state
 
     @app.post("/api/now")
@@ -500,13 +501,13 @@ def make_app(a):
             return JSONResponse({"error": "mode"}, 400)
         t = time.time() + NOW_LEAD
         wall.state |= {"now": body, "now_at": t, "now_until": t + body["seconds"] if body.get("seconds") else None}
-        wall.save_state()
+        wall.save_state("now", "now_at", "now_until")
         return wall.state
 
     @app.delete("/api/now")
     def back():
         wall.state |= {"now": None, "now_at": None, "now_until": None}
-        wall.save_state()
+        wall.save_state("now", "now_at", "now_until")
         return wall.state
 
     @app.get("/api/playlist")
