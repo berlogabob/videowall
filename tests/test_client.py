@@ -24,7 +24,8 @@ assert abs(w.wrap_err(0.1, 59.9, 60) - 0.2) < 1e-9
 assert w.drift_action(1.5) == ("seek", None)
 assert w.drift_action(0.01) == ("speed", 1.0)
 kind, s = w.drift_action(0.5); assert kind == "speed" and s == 0.95   # clamped to 5 %
-kind, s = w.drift_action(-0.1); assert abs(s - 1.02) < 1e-9
+assert w.drift_action(0.1) == ("speed", 1.0)
+kind, s = w.drift_action(-0.11); assert abs(s - 1.022) < 1e-9
 
 files = {"old": (1, 500), "mid": (2, 500), "new": (3, 500), "plan.json": (0, 0)}
 assert w.evict(files, {"old", "plan.json"}, free_mb=1000) == ["mid", "new"]

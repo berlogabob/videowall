@@ -16,7 +16,7 @@ The office can send a one-shot restart or reboot command to a screen; “all” 
 
 The office can show an emergency text message across the Videowall until “Back to schedule”.
 
-Bezel gaps can be tuned live from the LAN page: show the Test pattern and set Gap X/Y in pixels; the values save to `wall_state` when Supabase is connected, or to the local state file otherwise. The server uses `--bezel-x/--bezel-y` until a saved gap is set. Convert the frame width between two pictures from mm to pixels by dividing by 0.264.
+Bezel gaps can be tuned live from the LAN page: show the Test pattern and set Gap X/Y in pixels; the values save to `wall_state` when Supabase is connected, or to the local state file otherwise. The server uses `--bezel-x/--bezel-y` until a saved gap is set. Convert the frame width between two pictures from mm to pixels by dividing by 0.264. Measured (approximate) frames: top 14.5, sides 17.5, bottom 25.5 mm, so a column seam is 35 mm = 132 px and a row seam 40 mm = 151 px; these are the `--bezel-x/--bezel-y` defaults.
 
 ## How it fits with openlabtwin
 
@@ -42,7 +42,7 @@ Setup-only actions (identify screen, test pattern, per-Pi status) stay in the wa
 
 **Software.** Server: Python + uv, FastAPI + Uvicorn, FFmpeg only (no Pillow), plain HTML/JS page, WebSocket to Pis. Pi client: Python + uv, mpv, websockets. Manual `uv run`, no systemd, no Docker. Server prepares everything; Pis download their tile and play it. Sync: preload, then `play_at` timestamp, chrony on all Pis; millisecond sync not needed. Dropped: Godot (not needed for pre-rendered media; stays a thesis idea), PiWall.
 
-**Media.** Photo first, then HD/4K video. Tiles 1280×1024, same codec/fps/duration/GOP on every tile.
+**Media.** Photo first, then HD/4K video. Still tiles 1280×1024; video tiles 900×720 (mpv scales to the screen) at 2.5 Mb/s with x264 `-tune fastdecode`, same codec/fps/duration/GOP on every tile. A tile's `period` is measured from the rendered file, so loops stay in step.
 
 ## Running
 
@@ -59,6 +59,8 @@ tmux new -s wall 'uv run python -m server --cols 5 --rows 5 --media ~/tv-media -
 The Pis reach it on port 8080; the node's firewall needs, once: `sudo ufw allow from 192.168.1.0/24 to any port 8080`. LAN page: `http://192.168.1.131:8080/`. Options: `--bezel-x/--bezel-y` (px hidden behind the frames, bezel mm / 0.264), `--cache-gb` (render cache budget, default 60), `--font`.
 
 **Clients** (from the Mac, one Pi at a time): `scripts/wall.sh start` (all 25), `scripts/wall.sh start a1 b1`, `scripts/wall.sh status`, `scripts/wall.sh stop`. Each Pi downloads `wall.py` from the server and runs it with `uv run --script`.
+
+**Announcement files.** Files named `announcement*` in the media folder are never part of "all files" (mosaic with no file list). They show only when a slide or Show now names them. The TV is a separate program (openlabtwin) and needs the same rule there.
 
 **What shows** (first match wins): Identify/Test overlay from the LAN page, blackout, stopped (logo or black), "show now", takeover, announcement, the playlist loop, test-mode defaults (`server/assets/`, else the test grid). The playlist uses the TV's rules: dates, times of day, takeover, `every_seconds` announcements, links to schedule activities. Without Supabase it is `~/wall-cache/playlist.json`, edited on the LAN page; with Supabase it is the office's `wall_slides` table.
 

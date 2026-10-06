@@ -49,7 +49,7 @@ def drift_action(err):
     """Seek when far off, nudge speed when a little off, else play at 1."""
     if abs(err) > 1:
         return ("seek", None)
-    if abs(err) > 0.04:
+    if abs(err) > 0.10:
         return ("speed", 1 - max(-0.05, min(0.05, err / 5)))
     return ("speed", 1.0)
 

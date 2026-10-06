@@ -120,12 +120,13 @@ class Wall:
         m = self.info(name)
         video = m["kind"] == "video"
         copy = R.tv_copy(self.src(name)) if video else None  # the TV copy and rate are part of the render
-        k = R.key("tile", name, m["size"], m["mtime"], fit, copy.name if copy else None, "2500k" if video else None)
+        k = R.key("tile", name, m["size"], m["mtime"], fit, copy.name if copy else None,
+                  R.VIDEO_TILE if video else (R.TW, R.TH), "2500k" if video else None)
         ext = "mp4" if video else "jpg"
 
         def fn(d, progress):
             R.render_tile(self.src(name), d / f"tile.{ext}", fit, video, m["seconds"], progress)
-            return {"period": m["seconds"]} if video else {}
+            return {"period": R.probe(d / f"tile.{ext}")["seconds"]} if video else {}
         return (k, ext) if self.ensure(k, fn, 30 * 2**20 * max(1, (m["seconds"] or 0) / 60)) else (None, ext)
 
     def wall_keys(self, s):
@@ -155,12 +156,14 @@ class Wall:
         def moving(d, progress):
             R.render_videowall(self.src(name), d, self.grid, video=True, duration=m["seconds"], progress=progress,
                                font=self.a.font, **comp)
-            return {"period": m["seconds"]}
+            return {"period": R.probe(d / f"{self.codes[0]}.mp4")["seconds"]}
         est = 30 * 2**20 * len(self.codes) * max(1, m["seconds"] / 60)
         return (vk if self.ensure(vk, moving, est) else None), (pk if ready_p else None)
 
     def names(self, s):
-        return [n for n in (s.get("media_names") or sorted(self.media)) if self.info(n)]
+        # "all files" skips announcement* files; they play only when a slide or Show now names them
+        pool = s.get("media_names") or [n for n in sorted(self.media) if not n.lower().startswith("announcement")]
+        return [n for n in pool if self.info(n)]
 
     def ready(self, s):
         if s["mode"] == "videowall":
@@ -196,7 +199,7 @@ class Wall:
             if k:
                 out.append(self.item(k, f"tile.{ext}", m["kind"] if m["kind"] == "video" else "image", iat,
                                      min(iat + cycle, until or 1e18) if cycle else until,
-                                     m["seconds"] if m["kind"] == "video" else None))
+                                     self.cache.meta(k).get("period") if m["kind"] == "video" else None))
         return out
 
     def items_for(self, code, show, t):
@@ -572,8 +575,8 @@ def main():
     ap = argparse.ArgumentParser(description="Video wall server")
     ap.add_argument("--cols", type=int, default=5)
     ap.add_argument("--rows", type=int, default=5)
-    ap.add_argument("--bezel-x", type=int, default=0, help="px hidden between columns (bezel mm / 0.264)")
-    ap.add_argument("--bezel-y", type=int, default=0, help="px hidden between rows")
+    ap.add_argument("--bezel-x", type=int, default=132, help="px hidden between columns (bezel mm / 0.264)")
+    ap.add_argument("--bezel-y", type=int, default=151, help="px hidden between rows")
     ap.add_argument("--media", default="~/tv-media", help="the shared media folder (the TV's)")
     ap.add_argument("--cache", default="~/wall-cache", help="renders and state, outside the media folder")
     ap.add_argument("--cache-gb", type=float, default=60)

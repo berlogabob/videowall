@@ -7,12 +7,12 @@ import hashlib, json, os, shutil, subprocess, textwrap, time
 from pathlib import Path
 
 TW, TH = 1280, 1024
-RENDER_VERSION = 1
+RENDER_VERSION = 2
 PHOTO = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".heic"}
 VIDEO = {".mp4", ".m4v", ".mov", ".mkv", ".webm", ".avi"}
 STILL = ["-frames:v", "1", "-q:v", "2"]
 # Same settings on every tile, so all 25 decode alike; 1 s GOP makes joining mid-video cheap.
-VIDEO_ARGS = ["-c:v", "libx264", "-preset", "veryfast", "-profile:v", "high", "-level", "4.0", "-r", "30", "-g", "30",
+VIDEO_ARGS = ["-c:v", "libx264", "-preset", "veryfast", "-tune", "fastdecode", "-profile:v", "high", "-level", "4.0", "-r", "30", "-g", "30",
               "-keyint_min", "30", "-sc_threshold", "0", "-b:v", "4M", "-maxrate", "5M", "-bufsize", "8M",
               "-pix_fmt", "yuv420p", "-an", "-movflags", "+faststart"]
 FONTS = ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
@@ -305,7 +305,8 @@ def render_tile(src, out, fit="fit", video=False, duration=None, progress=None):
     out.parent.mkdir(parents=True, exist_ok=True)
     if video:
         src = tv_copy(src) or src
-    ffmpeg(["-i", str(src), "-vf", fit_filter(fit, TW, TH), *(TILE_ARGS if video else STILL), str(out)],
+    size = VIDEO_TILE if video else (TW, TH)
+    ffmpeg(["-i", str(src), "-vf", fit_filter(fit, *size), *(TILE_ARGS if video else STILL), str(out)],
            duration=duration if video else None, progress=progress)
 
 

@@ -66,6 +66,8 @@ with tempfile.TemporaryDirectory() as t:
 
     r.render_tile(src, t / "m" / "tile.jpg", "center")
     assert dims(t / "m" / "tile.jpg")["width"] == 1280
+    r.render_tile(src, t / "m" / "tile.mp4", video=True, duration=2)
+    assert (dims(t / "m" / "tile.mp4")["width"], dims(t / "m" / "tile.mp4")["height"]) == r.VIDEO_TILE
     r.render_identify("c4", "192.168.1.9", t / "id" / "c4.jpg")
     assert (t / "id" / "c4.jpg").exists()
 
