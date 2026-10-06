@@ -95,7 +95,7 @@ class Mpv:
         Path(self.sock).unlink(missing_ok=True)
         self.proc = await asyncio.create_subprocess_exec(
             "mpv", "--idle", "--force-window", "--fs", "--keep-open=always", "--image-display-duration=inf",
-            "--hwdec=no", "--loop-file=inf", "--no-osc", "--osd-level=0", "--no-audio", "--really-quiet", "--no-input-default-bindings",
+            "--hwdec=no", "--drm-mode=1280x1024", "--loop-file=inf", "--no-osc", "--osd-level=0", "--no-audio", "--really-quiet", "--no-input-default-bindings",
             f"--input-ipc-server={self.sock}", *self.extra)
         for _ in range(100):
             if Path(self.sock).exists():
