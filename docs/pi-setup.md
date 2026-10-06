@@ -103,4 +103,6 @@ Measured on `wall-a1` (Pi 3B+, 2026-09-30), 20 s of the 30 fps tile: software de
 
 ## Running the client
 
-From the Mac: `scripts/wall.sh start` (all 25, one after another), or with codes: `scripts/wall.sh start a1 b1`. It downloads `wall.py` from the server (`http://192.168.1.131:8080/wall.py`) and starts it detached with `uv run --script`; the log is `~/wall.log`, tiles are cached in `~/wall-cache/` (the client keeps 2 GB of the SD card free). `scripts/wall.sh status` and `stop` do what they say. Another server: `SERVER=ws://host:8080/ws scripts/wall.sh start`.
+The client runs under a supervised loop: fetch `wall.py` from the server (`http://192.168.1.131:8080/wall.py`), run it with `uv run --script`, and again 10 s after it exits. The boot cron line from `scripts/pi-setup.sh` starts that loop; `scripts/wall.sh start` starts the same loop by hand (one Pi after another; all 25 by default, or codes: `scripts/wall.sh start a1 b1`). `scripts/wall.sh status` prints `running, supervised`; `stop` ends the loop, the client and mpv. Log: `~/wall.log`; tiles: `~/wall-cache/` (2 GB of the SD card kept free). Another server: `SERVER=ws://host:8080/ws scripts/wall.sh start`.
+
+To kill only the client (as a crash test), use `pkill -x uv`; patterns that contain `wall.py` also match the loop's own command line and end it.
