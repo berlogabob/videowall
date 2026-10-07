@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Set up a wall Pi (Raspberry Pi OS Lite). Safe to run again: it only changes what is missing.
 #
-#   On the Mac, all Pis at once:  scripts/pi-setup.sh wall-{a..e}{1..3}.local
+#   On the Mac, all Pis at once:  scripts/pi-setup.sh wall-{a..e}{1..4}.local
 #   On the Mac, a card before first boot:  scripts/pi-setup.sh --boot /Volumes/bootfs
 #   On a Pi itself:  sudo bash pi-setup.sh
 #

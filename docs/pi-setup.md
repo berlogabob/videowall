@@ -20,7 +20,7 @@ Optional, before ejecting: `scripts/pi-setup.sh --boot /Volumes/bootfs` writes t
 All Pis on the TP-Link switch, the switch on the lab network, the Mac on the same network (or go through the node, see below). After about a minute each Pi answers as `wall-XX.local`:
 
 ```sh
-for n in a1 b1; do ping -c1 -t2 wall-$n.local >/dev/null && echo "wall-$n up" || echo "wall-$n MISSING"; done   # 5×3: wall-{a..e}{1..3}
+for n in a1 b1; do ping -c1 -t2 wall-$n.local >/dev/null && echo "wall-$n up" || echo "wall-$n MISSING"; done   # 5×4: wall-{a..e}{1..4}
 ```
 
 Later, give each Pi a fixed address (DHCP reservation) in the router, by the MAC it shows there.
@@ -36,7 +36,7 @@ ssh -t -i ~/.ssh/techlab techlab@wall-a1.local 'echo "techlab ALL=(ALL) NOPASSWD
 Then, from the repo on the Mac:
 
 ```sh
-scripts/pi-setup.sh wall-a1.local wall-b1.local   # 5×3: wall-{a..e}{1..3}.local
+scripts/pi-setup.sh wall-a1.local wall-b1.local   # 5×4: wall-{a..e}{1..4}.local
 ```
 
 It runs on all Pis in parallel, writes `logs/<host>.log` for each and prints one line per Pi:
@@ -106,3 +106,16 @@ Measured on `wall-a1` (Pi 3B+, 2026-09-30), 20 s of the 30 fps tile: software de
 The client runs under a supervised loop: fetch `wall.py` from the server (`http://192.168.1.131:8080/wall.py`), run it with `uv run --script`, and again 10 s after it exits. The boot cron line from `scripts/pi-setup.sh` starts that loop; `scripts/wall.sh start` starts the same loop by hand (one Pi after another; all 25 by default, or codes: `scripts/wall.sh start a1 b1`). `scripts/wall.sh status` prints `running, supervised`; `stop` ends the loop, the client and mpv. Log: `~/wall.log`; tiles: `~/wall-cache/` (2 GB of the SD card kept free). Another server: `SERVER=ws://host:8080/ws scripts/wall.sh start`.
 
 To kill only the client (as a crash test), use `pkill -x uv`; patterns that contain `wall.py` also match the loop's own command line and end it.
+
+## Adding a row (row 4 = `wall-a4` … `wall-e4`)
+
+Nothing in the code is tied to 3 rows: only the server's `--rows` and the Pis' hostnames change. Power: rows 4–5 go on the 5-way and 6-way switched strips, 2+2+1 Pis per charger rule from decision 0043 (not more than 2 Pis per USB port).
+
+1. Flash five cards as in step 1, hostnames `wall-a4` … `wall-e4`, stickers A4–E4; `scripts/pi-setup.sh --boot /Volumes/bootfs` on each card before ejecting.
+2. Cable them to the switch and power the row. Check: `for c in a b c d e; do ping -c1 -t2 wall-${c}4.local >/dev/null && echo "wall-${c}4 up" || echo "wall-${c}4 MISSING"; done` (from the Mac through the node, see below).
+3. One-time passwordless sudo on each (step 3, `wall-a4.local` … `wall-e4.local`), then `scripts/pi-setup.sh wall-{a..e}4.local`; reboot the ones that print REBOOT NEEDED.
+4. Start the clients: `scripts/wall.sh start a4 b4 c4 d4 e4`. They sit on the server's idle card until it knows row 4.
+5. On the node, restart the server with `--rows 4` (`tmux kill-session -t wall` kills tmux itself when it is the only session, so start the new one in the same command): the grid becomes 5×4, every wall render is made once again for the new canvas, and the office shows 20 squares.
+6. Show the Test pattern and re-check the gaps (Gap X/Y) over the new row seams.
+
+To add the row without stopping the wall, do steps 1–4 first and step 5 last.

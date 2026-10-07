@@ -30,7 +30,7 @@ Setup-only actions (identify screen, test pattern, per-Pi status) stay in the wa
 
 ## Summary
 
-**Hardware.** Samsung SyncMaster 720N, 17", 1280×1024 5:4, VGA only, VESA 100×100, <34 W. Grid now 5 cols × 3 rows (15 screens), next 5×5 (25), target 6×6 (36). One Raspberry Pi per screen (Pi 3B+ on hand) through an HDMI→VGA adapter, wired Ethernet. Switch TP-Link TL-SG1024D, 24 ports: enough for 15 + server, not for 25 + server (second switch or 48-port). Power: shared multi-port USB charger, 5 V / 2 A per port, below the Pi 3B+'s 2.5 A: undervoltage risk, check `vcgencmd get_throttled`.
+**Hardware.** Samsung SyncMaster 720N, 17", 1280×1024 5:4, VGA only, VESA 100×100, <34 W. Grid now 5 cols × 3 rows (15 screens), row 4 (5×4 = 20) being added, next 5×5 (25), target 6×6 (36). One Raspberry Pi per screen (Pi 3B+ on hand) through an HDMI→VGA adapter, wired Ethernet. Switch TP-Link TL-SG1024D, 24 ports: enough for 15 + server, not for 25 + server (second switch or 48-port). Power: shared multi-port USB charger, 5 V / 2 A per port, below the Pi 3B+'s 2.5 A: undervoltage risk, check `vcgencmd get_throttled`.
 
 **Mount.** 3D-printed bracket on the monitor's stand/VESA holes, carrying the Pi and a cable coil for slack. From the notes: HDMI plug sticks out 55 mm, power plug 20 mm; inner height 25–30 mm for air; coil inner area about 85 × 65 mm, cable bundle ø20 mm; plate about 54 × 33.5 mm; hole pitch about 40 mm horizontal, 15 mm vertical. Several values marked uncertain, measure again before printing.
 
