@@ -7,7 +7,7 @@ import hashlib, json, os, shutil, subprocess, textwrap, time
 from pathlib import Path
 
 TW, TH = 1280, 1024
-RENDER_VERSION = 2
+RENDER_VERSION = 3
 PHOTO = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".heic"}
 VIDEO = {".mp4", ".m4v", ".mov", ".mkv", ".webm", ".avi"}
 STILL = ["-frames:v", "1", "-q:v", "2"]
@@ -39,14 +39,14 @@ def bezel_grid(cols, rows, bezel, default_x, default_y):
     return cols, rows, even(max(0, min(400, x))), even(max(0, min(400, y)))
 
 
-def canvas_size(cols, rows, gx=0, gy=0):
+def canvas_size(cols, rows, gx=0, gy=0, tile=(TW, TH)):
     """The picture spans the screens and the bezel gaps between them (gx, gy px, hidden behind the frames)."""
-    return cols * TW + (cols - 1) * even(gx), rows * TH + (rows - 1) * even(gy)
+    return cols * tile[0] + (cols - 1) * even(gx), rows * tile[1] + (rows - 1) * even(gy)
 
 
-def crop_xy(code, gx=0, gy=0):
+def crop_xy(code, gx=0, gy=0, tile=(TW, TH)):
     c, r = cell(code)
-    return c * (TW + even(gx)), r * (TH + even(gy))
+    return c * (tile[0] + even(gx)), r * (tile[1] + even(gy))
 
 
 def bezel_px(mm, pitch_mm=0.264):
@@ -72,9 +72,9 @@ def drawtext(textfile, size, x, y):
             f":borderw={max(2, size // 20)}:bordercolor=black@0.7:x={x}:y={y}")
 
 
-def canvas_graph(cols, rows, gx=0, gy=0, fit="fit", matte=0, title=False, credits=False, logo=False):
+def canvas_graph(cols, rows, gx=0, gy=0, fit="fit", matte=0, title=False, credits=False, logo=False, tile=(TW, TH)):
     """[0:v] (and [1:v] = logo) -> [c], the whole composed canvas."""
-    W, H = canvas_size(cols, rows, gx, gy)
+    W, H = canvas_size(cols, rows, gx, gy, tile)
     m = even(matte)
     g = f"[0:v]{fit_filter(fit, W - 2 * m, H - 2 * m)},pad={W}:{H}:{m}:{m}:black"
     if title:
@@ -89,14 +89,14 @@ def canvas_graph(cols, rows, gx=0, gy=0, fit="fit", matte=0, title=False, credit
 VIDEO_TILE = (900, 720)  # what a Pi decodes for a videowall video; mpv scales it to 1280x1024
 
 
-def slice_graph(graph, codes_, gx, gy, W, preview=False, out_size=None):
+def slice_graph(graph, codes_, gx, gy, W, preview=False, out_size=None, tile=(TW, TH)):
     """[c] -> one [o_<code>] per screen (+ [o_preview], 640 px wide with the tile borders drawn)."""
     n = len(codes_) + (1 if preview else 0)
     g = graph + f";[c]split={n}" + "".join(f"[s{i}]" for i in range(n))
     for i, code in enumerate(codes_):
-        x, y = crop_xy(code, gx, gy)
+        x, y = crop_xy(code, gx, gy, tile)
         scale = f",scale={out_size[0]}:{out_size[1]}" if out_size else ""
-        g += f";[s{i}]crop={TW}:{TH}:{x}:{y}{scale}[o_{code}]"
+        g += f";[s{i}]crop={tile[0]}:{tile[1]}:{x}:{y}{scale}[o_{code}]"
     if preview:
         s = 640 / W
         g += (f";[s{n - 1}]scale=640:-2,drawgrid=w={(TW + even(gx)) * s:.2f}:h={(TH + even(gy)) * s:.2f}"
@@ -276,10 +276,14 @@ def render_videowall(src, d, grid, fit="fit", matte=0, title=None, credits=None,
     cols, rows, gx, gy = grid
     d.mkdir(parents=True, exist_ok=True)
     t, c = prepare_text(d, find_font(font), title, credits)
-    graph, W, H = canvas_graph(cols, rows, gx, gy, fit, matte, t, c, bool(logo))
-    cs = codes(cols, rows)
     still = not video or poster
-    g = slice_graph(graph, cs, gx, gy, W, preview=still, out_size=None if still else VIDEO_TILE)
+    tile = (TW, TH) if still else VIDEO_TILE
+    if not still:  # compose straight at the Pi's size (no 6400x5120 canvas): gaps and matte scale with the tile
+        k = VIDEO_TILE[0] / TW
+        gx, gy, matte = 2 * round(gx * k / 2), 2 * round(gy * k / 2), round(matte * k)
+    graph, W, H = canvas_graph(cols, rows, gx, gy, fit, matte, t, c, bool(logo), tile)
+    cs = codes(cols, rows)
+    g = slice_graph(graph, cs, gx, gy, W, preview=still, tile=tile)
     args = ["-i", str(src)] + (["-i", str(logo)] if logo else []) + ["-filter_complex", g]
     for code in cs:
         name = (f"poster-{code}.jpg" if poster else f"{code}.jpg") if still else f"{code}.mp4"

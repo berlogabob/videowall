@@ -9,6 +9,7 @@ assert r.canvas_size(5, 5) == (6400, 5120) and r.canvas_size(5, 5, 40, 30) == (6
 assert r.crop_xy("a1", 40, 30) == (0, 0) and r.crop_xy("e5", 40, 30) == (4 * 1320, 4 * 1054)
 assert r.canvas_size(2, 1, 41, 0) == (2600, 1024)       # odd bezel rounds to even
 assert r.bezel_px(10) == 38
+assert r.canvas_size(5, 4, 92, 106, r.VIDEO_TILE) == (5 * 900 + 4 * 92, 4 * 720 + 3 * 106) and r.crop_xy("e4", 92, 106, r.VIDEO_TILE) == (4 * 992, 3 * 826)
 assert r.bezel_grid(5, 3, {"x": 41, "y": 401}, 8, 6) == (5, 3, 40, 400)
 assert r.bezel_grid(5, 3, None, 9, -2) == (5, 3, 8, 0)
 assert r.wrap("one two three", 7) == "one two\nthree"
