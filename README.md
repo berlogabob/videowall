@@ -36,7 +36,7 @@ Setup-only actions (identify screen, test pattern, per-Pi status) stay in the wa
 
 **Modes.** Mosaic: each screen shows its own file from the pool, cycling like a photo frame. Videowall: one picture or video split across all screens. "Same media" is a case of Mosaic, not shown as a mode. Test mode: when the pool is empty, show bundled images (institute logo, lab photos, staff). Switching must be easy (office button).
 
-**Layout.** Rows/cols live only on the server. Each screen has a grid code: letter = column, number = row, A1 top-left, so a 5×5 grid ends at E5. A Pi knows only its code (hostname `wall-a1`). Start: 2 screens, A1 and B1. 5×4 canvas with 132/150 px gaps = 6928 × 5046 (stills; video is composed at 900×720 tiles: 4932 × 3198).
+**Layout.** Rows/cols live only on the server. Each screen has a grid code: letter = column, number = row, A1 top-left, so a 5×5 grid ends at E5. A Pi knows only its code (hostname `wall-a1`). Start: 2 screens, A1 and B1. 5×4 canvas with 132/150 px gaps = 6928 × 4546 (stills; video is composed at 900×720 tiles with 92/106 px gaps: 4868 × 3198).
 
 **Composition.** Fit / Fill / Center. Logo, event title, credits, matte/frame baked into the canvas before slicing, so they cross screen borders correctly.
 
