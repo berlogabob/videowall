@@ -30,13 +30,13 @@ Setup-only actions (identify screen, test pattern, per-Pi status) stay in the wa
 
 ## Summary
 
-**Hardware.** Samsung SyncMaster 720N, 17", 1280×1024 5:4, VGA only, VESA 100×100, <34 W. Grid now 5 cols × 3 rows (15 screens), row 4 (5×4 = 20) being added, next 5×5 (25), target 6×6 (36). One Raspberry Pi per screen (Pi 3B+ on hand) through an HDMI→VGA adapter, wired Ethernet. Switch TP-Link TL-SG1024D, 24 ports: enough for 15 + server, not for 25 + server (second switch or 48-port). Power: shared multi-port USB charger, 5 V / 2 A per port, below the Pi 3B+'s 2.5 A: undervoltage risk, check `vcgencmd get_throttled`.
+**Hardware.** Samsung SyncMaster 720N, 17", 1280×1024 5:4, VGA only, VESA 100×100, <34 W. Grid now 5 cols × 4 rows (20 screens, all online 2026-10-09), next 5×5 (25), target 6×6 (36). One Raspberry Pi per screen (Pi 3B+ on hand) through an HDMI→VGA adapter, wired Ethernet. Switch TP-Link TL-SG1024D, 24 ports: enough for 15 + server, not for 25 + server (second switch or 48-port). Power: shared multi-port USB charger, 5 V / 2 A per port, below the Pi 3B+'s 2.5 A: undervoltage risk, check `vcgencmd get_throttled`.
 
 **Mount.** 3D-printed bracket on the monitor's stand/VESA holes, carrying the Pi and a cable coil for slack. From the notes: HDMI plug sticks out 55 mm, power plug 20 mm; inner height 25–30 mm for air; coil inner area about 85 × 65 mm, cable bundle ø20 mm; plate about 54 × 33.5 mm; hole pitch about 40 mm horizontal, 15 mm vertical. Several values marked uncertain, measure again before printing.
 
 **Modes.** Mosaic: each screen shows its own file from the pool, cycling like a photo frame. Videowall: one picture or video split across all screens. "Same media" is a case of Mosaic, not shown as a mode. Test mode: when the pool is empty, show bundled images (institute logo, lab photos, staff). Switching must be easy (office button).
 
-**Layout.** Rows/cols live only on the server. Each screen has a grid code: letter = column, number = row, A1 top-left, so a 5×5 grid ends at E5. A Pi knows only its code (hostname `wall-a1`). Start: 2 screens, A1 and B1. 5×3 canvas = 6400 × 3072.
+**Layout.** Rows/cols live only on the server. Each screen has a grid code: letter = column, number = row, A1 top-left, so a 5×5 grid ends at E5. A Pi knows only its code (hostname `wall-a1`). Start: 2 screens, A1 and B1. 5×4 canvas with 132/150 px gaps = 6928 × 5046 (stills; video is composed at 900×720 tiles: 4932 × 3198).
 
 **Composition.** Fit / Fill / Center. Logo, event title, credits, matte/frame baked into the canvas before slicing, so they cross screen borders correctly.
 
@@ -53,7 +53,7 @@ Design: [docs/PLAN.md](docs/PLAN.md). Parts: `server/` (FastAPI + FFmpeg, on the
 ```sh
 cd ~/videowall && uv sync
 set -a; . ~/openlabtwin/.env; set +a          # optional: the office link (SUPABASE_URL, SUPABASE_SERVICE_KEY)
-tmux new -s wall 'uv run python -m server --cols 5 --rows 5 --media ~/tv-media --cache ~/wall-cache'
+tmux new -s wall 'uv run python -m server --cols 5 --rows 4 --media ~/tv-media --cache ~/wall-cache'
 ```
 
 The Pis reach it on port 8080; the node's firewall needs, once: `sudo ufw allow from 192.168.1.0/24 to any port 8080`. LAN page: `http://192.168.1.131:8080/`. Options: `--bezel-x/--bezel-y` (px hidden behind the frames, bezel mm / 0.264), `--cache-gb` (render cache budget, default 60), `--font`.
