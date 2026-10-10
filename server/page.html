@@ -55,6 +55,8 @@
       <select id="fit"><option>fit</option><option>fill</option><option>center</option></select>
       <label class="muted"><input id="cycle" type="number" min="1" placeholder="10" style="width:60px"> s cycle</label>
       <table id="media"></table>
+      <input id="file" type="file" accept="image/*,video/*" multiple>
+      <button onclick="upload()">Upload</button> <span id="upmsg" class="muted"></span>
     </section>
     <section>
       <h2>Canvas</h2>
@@ -87,6 +89,14 @@ function showNow(name) {
   const mode = $('mode').value, body = {mode, fit: $('fit').value, media_names: name ? [name] : []};
   if (mode === 'mosaic') body.cycle_seconds = +$('cycle').value || 10;
   post('/api/now', body);
+}
+async function upload() {
+  for (const f of $('file').files) {
+    $('upmsg').textContent = 'uploading ' + f.name;
+    const r = await fetch('/api/media/' + encodeURIComponent(f.name), {method: 'PUT', body: f});
+    if (!r.ok) { $('upmsg').textContent = f.name + ': ' + (await r.json()).error; return; }
+  }
+  $('upmsg').textContent = 'done'; $('file').value = ''; refresh();
 }
 async function savePlaylist() {
   try {

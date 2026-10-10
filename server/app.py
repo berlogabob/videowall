@@ -7,7 +7,7 @@ Control: the LAN page (/), and the office through Supabase when SUPABASE_URL / S
 import argparse, asyncio, json, math, queue, shutil, threading, time, traceback
 from pathlib import Path
 
-from fastapi import Body, FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import Body, FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -30,8 +30,12 @@ def load_json(p, default):
         return default
 
 
-def new_uploads(listing, seen):
-    return [obj for obj in listing if obj.get("id") and obj["name"] not in seen]
+def upload_name(name):
+    """A safe flat file name for an upload to the media folder, or None."""
+    name = Path(name or "").name
+    if not name or name.startswith(".") or Path(name).suffix.lower() not in R.PHOTO | R.VIDEO:
+        return None
+    return name
 
 
 class Wall:
@@ -265,29 +269,6 @@ class Wall:
                     print(f"display power {'on' if display_on else 'off'} sent", flush=True)
                 if t - last_ahead > 30:  # render ahead: everything in today's window, in playlist order
                     last_ahead = t
-                    if self.db:
-                        try:
-                            seen_path = self.root / "uploads.json"
-                            seen = set(load_json(seen_path, []))
-                            for obj in new_uploads(await asyncio.to_thread(sdb.storage_list, self.db, "wall-upload"), seen):
-                                remote = obj["name"]
-                                name = Path(remote).name
-                                if not name or name in (".", ".."):
-                                    continue
-                                dest = self.media_dir / name
-                                if dest.exists():
-                                    stem, suffix, index = Path(name).stem, Path(name).suffix, 1
-                                    while dest.exists():
-                                        dest = self.media_dir / f"{stem} (upload {index}){suffix}"
-                                        index += 1
-                                self.media_dir.mkdir(parents=True, exist_ok=True)
-                                part = dest.with_name(dest.name + ".part")
-                                await asyncio.to_thread(sdb.storage_get, self.db, "wall-upload", remote, part)
-                                part.replace(dest)
-                                seen.add(remote)
-                            seen_path.write_text(json.dumps(sorted(seen)))
-                        except Exception as e:
-                            self.db_error = f"{type(e).__name__}: {e}"
                     self.media = await asyncio.to_thread(R.scan, self.media_dir, self.root)
                     self.assets = await asyncio.to_thread(R.scan, ASSETS, self.root / "assets-probe") \
                         if ASSETS.is_dir() else {}
@@ -512,6 +493,19 @@ def make_app(a):
         wall.state |= {"now": None, "now_at": None, "now_until": None}
         wall.save_state("now", "now_at", "now_until")
         return wall.state
+
+    @app.put("/api/media/{name}")
+    async def put_media(name: str, request: Request):
+        safe = upload_name(name)
+        if not safe or (wall.media_dir / safe).exists():
+            return JSONResponse({"error": "bad file type or name already in the media folder"}, 409)
+        wall.media_dir.mkdir(parents=True, exist_ok=True)
+        part = wall.media_dir / f".{safe}.part"
+        with open(part, "wb") as f:
+            async for chunk in request.stream():
+                f.write(chunk)
+        part.replace(wall.media_dir / safe)
+        return {"name": safe}
 
     @app.get("/api/playlist")
     def get_playlist():
