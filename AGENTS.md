@@ -15,6 +15,7 @@ Rules from the owner:
 - Rows and cols live only on the server; a Pi knows only its grid code: letter = column, number = row, A1 top-left (E5 is bottom-right of a 5×5), hostname `wall-a1`.
 
 Gotchas the code doesn't show:
+- Supabase is the free plan only; exceeding 5.5 GB egress restricts the org and pauses the project, and the owner cannot buy Pro. Keep polling slow (`POLL_S`/`BEAT_S` in `server/app.py`), write only on change, state requests per day for any new loop. See openlabtwin decision 0051.
 - openlabtwin (github.com/berlogabob/openlabtwin) is the one entry point: its office app will control the wall through Supabase tables `wall_state` / `wall_status` that this server polls. The office can't call this server directly (HTTPS page, plain-http LAN server).
 - Lab access: the Mac reaches the lab over Tailscale; the node `techlab-01` (`ssh -i ~/.ssh/techlab TechLAB@techlab-01`) is the jump host and resolves `wall-a1.local`.
 - `scripts/pi-setup.sh` has run on `wall-a1`; each new Pi first needs the one-time passwordless-sudo step in `docs/pi-setup.md`.
