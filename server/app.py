@@ -19,6 +19,7 @@ from .schedule import TZ, describe, in_sleep, in_window, link_events, resolve, t
 
 HERE = Path(__file__).parent
 ASSETS = HERE / "assets"
+POLL_S, BEAT_S = 10, 30  # office link; Supabase free-tier egress, was 2 / 10
 OVERLAY_SECONDS = {"identify": 10, "test": 60}
 NOW_LEAD = 3  # seconds between "show now" and the synced start, time for the Pis to download
 
@@ -349,7 +350,7 @@ class Wall:
                 "bezel": self.grid[2:]}
 
     async def office(self):
-        """Poll the wall tables every 2 s (a slow fetch just delays the next), heartbeat every 10 s."""
+        """Poll the wall tables every POLL_S (a slow fetch just delays the next), heartbeat every BEAT_S."""
         last_beat = last_timeline = 0
         while True:
             try:
@@ -393,7 +394,7 @@ class Wall:
                 self.db_error = None
             except Exception as e:  # keep playing from the last good copy
                 self.db_error = f"{type(e).__name__}: {e}"
-            if time.time() - last_beat > 10:
+            if time.time() - last_beat > BEAT_S:
                 last_beat = time.time()
                 st = self.status()
                 slides = {}
@@ -420,7 +421,7 @@ class Wall:
                     await asyncio.to_thread(sdb.heartbeat, self.db, fields)
                 except Exception as e:
                     self.db_error = f"{type(e).__name__}: {e}"
-            await asyncio.sleep(2)
+            await asyncio.sleep(POLL_S)
 
     def save_local_state(self):
         (self.root / "state.json").write_text(json.dumps(self.state))
